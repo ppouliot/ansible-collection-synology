@@ -35,7 +35,7 @@ ansible-galaxy collection install interoperable.synology
 
 This collection contains code under multiple licenses:
 
-- **Collection-level code:** [GPL-2.0-or-later](LICENSE)
+- **Collection-level code:** [Apache-2.0](LICENSE)
 - **`roles/synology_dsm`:** [MIT License](LICENSES/MIT.txt) — originally authored by
   [Andrew Gaffney](https://github.com/agaffney/ansible-synology-dsm).
   The MIT license is retained verbatim in `roles/synology_dsm/LICENSE` and `LICENSES/MIT.txt`.

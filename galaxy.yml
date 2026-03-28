@@ -7,7 +7,7 @@ description: Ansible Collection for managing Synology NAS devices running DSM
 authors:
   - Peter Pouliot <peter@interoperable.systems>
 license:
-  - GPL-2.0-or-later
+  - Apache-2.0
 license_file: LICENSE
 tags:
   - synology
