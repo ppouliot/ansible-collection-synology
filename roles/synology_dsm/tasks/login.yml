@@ -1,0 +1,29 @@
+---
+# DSM 7 SID-based login (preferred)
+# Falls back gracefully — if your DSM version doesn't support SID format,
+# set synology_dsm_auth_format to 'cookie' in your vars.
+- name: Login to DSM and obtain SID
+  interoperable.synology.synology_dsm_api_request:
+    base_url: "{{ synology_dsm_base_url }}"
+    cgi_name: auth.cgi
+    api_name: SYNO.API.Auth
+    api_version: "6"
+    api_method: login
+    request_method: POST
+    validate_certs: "{{ synology_dsm_validate_certs }}"
+    api_params:
+      account: "{{ synology_dsm_username }}"
+      passwd: "{{ synology_dsm_password }}"
+      format: "{{ synology_dsm_auth_format | default('sid') }}"
+  register: synology_dsm_login_response
+  no_log: true
+
+- name: Store SID (DSM 7)
+  ansible.builtin.set_fact:
+    synology_dsm_sid: "{{ synology_dsm_login_response.json.data.sid }}"
+  when: synology_dsm_login_response.json.data.sid is defined
+
+- name: Store legacy cookie (DSM 6 fallback)
+  ansible.builtin.set_fact:
+    synology_dsm_login_cookie: "{{ synology_dsm_login_response.set_cookie | default('') }}"
+  when: synology_dsm_login_response.json.data.sid is not defined
