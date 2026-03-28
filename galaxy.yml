@@ -1,0 +1,21 @@
+---
+namespace: interoperable
+name: synology
+version: 1.0.0
+readme: README.md
+description: Ansible Collection for managing Synology NAS devices running DSM
+authors:
+  - Peter Pouliot <peter@interoperable.systems>
+license:
+  - GPL-2.0-or-later
+license_file: LICENSE
+tags:
+  - synology
+  - dsm
+  - nas
+  - storage
+repository: https://github.com/interoperable/ansible-collection-synology
+homepage: https://interoperable.systems
+documentation: https://github.com/interoperable/ansible-collection-synology
+issues: https://github.com/interoperable/ansible-collection-synology/issues
+dependencies: {}
