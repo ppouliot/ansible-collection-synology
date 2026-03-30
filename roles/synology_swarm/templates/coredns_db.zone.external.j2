@@ -1,0 +1,22 @@
+$ORIGIN {{ postal }}.{{ cloudflare_dns_domain }}.
+
+@	3600 IN	SOA fred.ns.cloudflare.com. kim.ns.cloudflare.com. (
+				2017042745 ; serial
+				7200       ; refresh (2 hours)
+				3600       ; retry (1 hour)
+				1209600    ; expire (2 weeks)
+				3600       ; minimum (1 hour)
+				)
+
+	3600 IN NS fred.ns.cloudflare.com.
+	3600 IN NS kim.ns.cloudflare.com.
+
+www     IN A     127.0.0.1
+        IN AAAA  ::1
+{% for host in groups['all'] %}
+{{ hostvars[host]['inventory_hostname'] }} IN A {{ hostvars[host]['ansible_default_ipv4']['address'] }}
+
+{% if hostvars[host]['ansible_default_ipv6'] is defined and hostvars[host]['ansible_default_ipv6']['address'] is defined %}
+{{ hostvars[host]['inventory_hostname'] }} IN AAAA {{ hostvars[host]['ansible_default_ipv6']['address'] }}
+{% endif %}
+{% endfor %}

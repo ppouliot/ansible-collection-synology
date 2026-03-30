@@ -34,3 +34,4 @@ cloudflare_host_name: ds718p
 
 # ── Facts ─────────────────────────────────────────────────────────────────────
 synology_facts_dir: "{{ playbook_dir }}/facts"
+swarm_role: manager

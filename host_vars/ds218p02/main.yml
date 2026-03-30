@@ -21,3 +21,4 @@ synology_upptime_enable: false
 
 # ── Facts ─────────────────────────────────────────────────────────────────────
 synology_facts_dir: "{{ playbook_dir }}/facts"
+swarm_role: worker
