@@ -1,0 +1,32 @@
+---
+- name: Get list of installed synology packages
+  changed_when: false
+  ansible.builtin.command: "{{ synology_synopkg }} list --name"
+  register: _synopkg_list
+
+- name: Install synology packages
+  ansible.builtin.command: "{{ synology_synopkg }} install_from_server {{ item }}"
+  loop: "{{ synology_package_list }}"
+  register: _install_packages
+  changed_when: "'installed successfully' in _install_packages.stdout or 'start' in _install_packages.stdout"
+  failed_when: _install_packages.rc != 0 and 'already installed' not in _install_packages.stdout
+  when: item not in _synopkg_list.stdout_lines
+
+- name: Update all packages
+  ansible.builtin.command: "{{ synology_synopkg }} upgradeall"
+  register: _synopkg_output
+  changed_when: _synopkg_output.rc == 0
+  when: synology_upgrade_packages | default(false)
+
+- name: Check for packages with pending updates
+  changed_when: false
+  ansible.builtin.command: "{{ synology_synopkg }} checkupdateall"
+  register: _able_to_upgrade
+  when: synology_upgrade_packages | default(false)
+
+- name: Report packages with pending updates
+  ansible.builtin.debug:
+    msg: "Packages with pending updates:\n{{ _able_to_upgrade.stdout }}"
+  when:
+    - synology_upgrade_packages | default(false)
+    - _able_to_upgrade.stdout_lines | length > 0

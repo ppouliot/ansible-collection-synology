@@ -1,0 +1,28 @@
+---
+- name: Ensure local facts directory exists
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/facts"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+
+- name: Get IP geolocation facts
+  community.general.ipinfoio_facts:
+
+- name: Save IP info facts locally
+  ansible.builtin.copy:
+    content: |
+      # IPInfo facts — {{ inventory_hostname }}
+      ip: "{{ ansible_facts.ip | default('unknown') }}"
+      city: "{{ ansible_facts.city | default('unknown') }}"
+      region: "{{ ansible_facts.region | default('unknown') }}"
+      country: "{{ ansible_facts.country | default('unknown') }}"
+      org: "{{ ansible_facts.org | default('unknown') }}"
+      timezone: "{{ ansible_facts.timezone | default('unknown') }}"
+      loc: "{{ ansible_facts.loc | default('unknown') }}"
+    dest: "{{ playbook_dir }}/facts/{{ inventory_hostname }}_ipinfo.yml"
+  delegate_to: localhost
+
+- name: Display IP info summary
+  ansible.builtin.debug:
+    msg: "IPInfo — {{ ansible_facts.ip | default('unknown') }} / {{ ansible_facts.city | default('unknown') }}, {{ ansible_facts.country | default('unknown') }} ({{ ansible_facts.org | default('unknown') }})"

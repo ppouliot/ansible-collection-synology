@@ -1,0 +1,41 @@
+volumes:
+  ts-data:
+
+services:
+  # For additional VPN service providers, see: https://github.com/qdm12/gluetun-wiki
+  gluetun:
+    image: qmcgaw/gluetun
+    restart: unless-stopped
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=${PROVIDER}
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${VPN_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${VPN_ADDRESSES}
+      - WIREGUARD_PRESHARED_KEY=${VPN_PRESHARED_KEY}
+      - SERVER_REGIONS=${SERVER_REGIONS}
+
+  tailscale-vpn-exit-node:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-vpn-exit-node
+    network_mode: service:gluetun
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - TS_EXTRA_ARGS=--advertise-exit-node  # or --advertise-tags=tag:vpn
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_HOSTNAME=vpn-${SERVER_REGIONS}
+    volumes:
+      - ts-data:/var/lib/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    restart: unless-stopped
+    depends_on:
+      gluetun:
+        condition: service_healthy

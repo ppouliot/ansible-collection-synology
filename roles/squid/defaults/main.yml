@@ -1,0 +1,9 @@
+---
+# Prowlarr
+squid_container_image: "sameersbn/squid:3.5.27-2"
+squid_port: "3128"
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+squid_port: "3128"

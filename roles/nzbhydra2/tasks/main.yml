@@ -1,0 +1,158 @@
+---
+- name: "NZBHydra2: Check if /volume1/docker directory exists on Synology"
+  stat:
+    path: /volume1/docker/downloads
+  register: _nzbhydra2_download_dir
+  tags:
+    - nzbhydra2
+    - nzbhydra2_root
+- name: "NZBHydra2: Check if NZBHydra2 container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/nzbhydra2"
+  register: _nzbhydra2_config_dir
+  tags:
+    - nzbhydra2
+    - nzbhydra2_root
+- name: "NZBHydra2: Create directories to house nzbhydra2 data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/nzbhydra2"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _nzbhydra2_config_dir
+  tags:
+    - nzbhydra2
+    - nzbhydra2_root
+  when:
+    - _nzbhydra2_config_dir is defined
+    - not _nzbhydra2_config_dir.stat.exists
+- name: "NZBHydra2: Check if NZBHydra2 container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: nzbhydra2
+  register: _nzbhydra2_state
+  tags:
+    - nzbhydra2
+- name: Set NZBHydra2 facts
+  set_fact:
+    nzbhydra2_download_dir: "{{ _nzbhydra2_download_dir.stat.path }}"
+    nzbhydra2_config_dir: "{{ _nzbhydra2_download_dir }}"
+    nzbhydra2_state: "{{ _nzbhydra2_state }}"
+    cacheable: true
+  tags:
+    - nzbhydra2
+- name: "NZBHydra2: Container installation and configuration block"
+  block:
+    - name: "NZBHydra2: Create nzbhydra2 container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: nzbhydra2
+        image: "{{ nzbhydra2_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+#       network_mode: host
+#       ports:
+#         - "5076:5076
+        volumes:
+          - "{{ container_directory_root }}/nzbhydra2:/config"
+          - "{{ nzbhydra2_download_dir }}:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _nzbhydra2_status
+    - name: "NZBHydra2: Set nzbhydra2_is_running fact"
+      ansible.builtin.set_fact:
+        nzbhydra2_is_running: "{{ _nzbhydra2_status.container.State.Running }}"
+    - name: "NZBHydra2: Wait for NZBHydra2 HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:5076"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "NZBHydra2: Stop NZBHydra2 container"
+      community.docker.docker_container:
+        name: nzbhydra2
+        state: stopped
+    - name: "NZBHydra2: Get NZBHydra2 ApiKey"
+      ansible.builtin.debug:
+        msg: "!!!! TODO: Need to generate fact for use in YAML Template"
+    - name: "NZBHydra2: Read NZBHydra2 configuration file (nzbhydra.yml)"
+      ansible.builtin.slurp:
+        src: /volume1/docker/nzbhydra2/nzbhydra.yml
+      register: nzbhydra2_config_yaml
+    - name: "Nzbhydra2: print config in b64decode"
+      ansible.builtin.debug:
+        msg: "{{ nzbhydra2_config_yaml['content'] | b64decode }}"
+      register: nzbhydra2_config
+    - name: "Nzbhydra2: set config to variable"
+      ansible.builtin.debug:
+        var: nzbhydra2_config
+    - name: "Nzbhydra2: print config"
+      ansible.builtin.debug:
+        msg: "{{ nzbhydra2_config.msg }}"
+#    - ansible.builtin.set_fact:
+#        nzbhydra2_api_key: "{{ nzbhydra2_config.msg.APIKey }}"
+#        cacheable: true
+#    - name: "NZBHydra2: Render templated NZBHydra2 indexers into a fact"
+#      set_fact:
+#        nzbhydra2_indexers: "{{ lookup('template', 'nzbhydra2_indexers.yml.j2') }}"
+#    - name: "NZBHydra2: Replace indexers:[] line in nzbhydra.yml with fact"
+#      ansible.builtin.replace:
+#        path: "{{ container_directory_root }}/nzbhydra2/nzbhydra.yml"
+#        regexp: "^indexers:\ []"
+#        replace: "{{ ansible_facts['nzbhydra2_indexers'] }}"
+#    - name: "NZBHydra2: Add templated nzbhydra.yml"
+#      ansible.builtin.template:
+#        src: nzbhydra2_indexers.yml.j2
+#        dest: "{{ container_directory_root }}/nzbhydra2/nzbhydra2_indexers.yml.ansible"
+#        owner: "{{ user_puid }}"
+#        group: "{{ group_pgid }}"
+#        mode: 0770
+    - name: "NZBHydra2: Start NZBHydra2 container"
+      community.docker.docker_container:
+        name: nzbhydra2
+        state: started
+ # End Block
+  tags:
+    - nzbhydra2
+    - nzbhydra2_install
+  when: not _nzbhydra2_state.exists
+- name: "NZBHydra2: pull and restart container block"
+  block:
+    - name: "NZBHydra2: Create nzbhydra2 container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: nzbhydra2
+        image: "{{ nzbhydra2_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+#       network_mode: host
+#       ports:
+#         - "5076:5076
+        volumes:
+          - "{{ container_directory_root }}/nzbhydra2:/config"
+          - "{{ nzbhydra2_download_dir }}:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _nzbhydra2_status
+ # End Block
+  tags:
+    - nzbhydra2
+    - nzbhydra2_restart
+  when: _nzbhydra2_state.exists

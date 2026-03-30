@@ -1,0 +1,28 @@
+---
+# Deluge
+
+deluge_container_image: "ghcr.io/linuxserver/deluge:latest"
+
+# Authentication
+deluge_host_key: "ad98fe3c538842338b1ba3d3ae405941"
+deluge_localclient_password: "aec5b4590a40bc36aebaf0836d0960788fc64028"
+deluge_web_password_salt: "c449b9c280d0f70d86046bf19d57078626e9e5b1"
+deluge_admin_password: "D3lug3@dmin"
+
+
+# Locations
+deluge_autoadd_location: "/downloads/torrents"
+deluge_geoip_db_location: "/usr/share/GeoIP/GeoIP.dat"
+deluge_download_location: "/downloads"
+deluge_torrentfiles_location: "{{ deluge_download_location }}"
+deluge_plugins_location: "/config/plugins"
+
+
+# Configuration
+deluge_move_completed: true
+deluge_stop_seed_ratio: "1.0"
+deluge_stop_seed_at_ratio: true
+deluge_remove_seed_at_ratio: true
+deluge_share_ratio_limit: "1.0"
+deluge_dht: false
+deluge_utpex: false

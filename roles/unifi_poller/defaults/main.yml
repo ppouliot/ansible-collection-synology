@@ -1,0 +1,13 @@
+---
+# defaults file for unifi_poller
+unifi_poller_influxdb_password: CHANGEME
+unifi_poller_influxdb_admin_token: unpollersecret
+unifi_poller_grafana_password: grafanaadmin
+unifi_unifipoller_user: unifipoller
+unifi_unifipoller_user_password: CHANGEME
+unifi_url: https://127.0.0.1:8443
+unifi_poller_github_repo: "https://github.com/unpoller/unpoller.git"
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

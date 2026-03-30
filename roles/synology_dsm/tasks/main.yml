@@ -1,0 +1,28 @@
+---
+- name: DSM configuration block
+  module_defaults:
+    ppouliot.synology.synology_dsm_api_request:
+      base_url: "{{ synology_dsm_base_url }}"
+      validate_certs: "{{ synology_dsm_validate_certs }}"
+      login_sid: "{{ synology_dsm_sid | default(omit) }}"
+      login_cookie: "{{ synology_dsm_login_cookie | default(omit) }}"
+  block:
+    - name: Login
+      ansible.builtin.include_tasks: login.yml
+
+    - name: Query system status
+      ppouliot.synology.synology_dsm_api_request:
+        api_name: SYNO.Core.System.Status
+        api_method: get
+
+    - name: Configure terminal services
+      ansible.builtin.include_tasks: terminal.yml
+
+    - name: Configure user services
+      ansible.builtin.include_tasks: users.yml
+
+    - name: Configure package sources
+      ansible.builtin.include_tasks: package_sources.yml
+
+    - name: Configure file services
+      ansible.builtin.include_tasks: file_services.yml

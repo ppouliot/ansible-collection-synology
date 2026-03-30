@@ -1,0 +1,8 @@
+---
+# defaults file for kitana
+kitana_container_image: "pannal/kitana:latest"
+
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

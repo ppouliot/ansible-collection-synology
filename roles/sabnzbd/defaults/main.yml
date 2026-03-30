@@ -1,0 +1,21 @@
+---
+# NZBGet
+sabnzbd_container_image: "lscr.io/linuxserver/sabnzbd:latest"
+sabnzbd_port: "8080"
+sabnzbd_control_password: sabnzbd
+# sabnzbd_api_key: "7NGDN9NKKK17VEQDC78S5KJVPK"
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+# Easynews Information
+easynews_server1_name: "secure-us.news.easynews.com"
+easynews_server1_port: "443"
+easynews_server1_encryption: "yes"
+easynews_server2_name: "secure.news.easynews.com"
+easynews_server2_port: "443"
+easynews_server2_encryption: "yes"
+easynews_username: "myeasynews"
+easynews_password: "myeasynewspassword"
+easynews_retention_period: "0"
+easynews_connections: "4"

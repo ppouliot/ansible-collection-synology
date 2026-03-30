@@ -1,0 +1,135 @@
+---
+- name: "Organizr: Check if Organizr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/organizr"
+  register: _organizr_config_dir
+  tags:
+    - organizr
+    - organizr_root
+- name: "Organizr: Create directories to house organizr data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/organizr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _organizr_config_dir
+  tags:
+    - organizr
+    - organizr_root
+  when:
+    - _organizr_config_dir is defined
+    - not _organizr_config_dir.stat.exists
+- name: "Organizr: Check if Organizr container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: organizr
+  register: _organizr_state
+  tags:
+    - organizr
+
+- name: "Organizr: set facts"
+  ansible.builtin.set_fact:
+    organizr_port: "{{ organizr_port }}"
+    organizr_config_dir: "{{ _organizr_config_dir }}"
+  tags:
+    - organizr
+- name: "Organizr: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: "Organizr: Create organizr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: organizr
+        image: "{{ organizr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: bridge
+        volumes:
+          - "{{ container_directory_root }}/organizr:/config:rw"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        ports:
+          - "{{ organizr_port }}:80"
+        state: started
+        restart_policy: unless-stopped
+      register: _organizr_status
+
+    - name: "Organizr: Set organizr_is_running fact"
+      ansible.builtin.set_fact:
+        organizr_is_running: "{{ _organizr_status.container.State.Running }}"
+    - name: "Organizr: Wait for Organizr HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ organizr_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Organizr: Stop organizr container"
+      community.docker.docker_container:
+        name: organizr
+        state: stopped
+
+# Threadfin Image Location
+# https://github.com/Threadfin/Threadfin/raw/main/html/img/threadfin.png
+# file must be put here: /volume1/docker/organizr/www/organizr/plugins/images/tabs#
+
+    - name: "Organizr: Add config.php"
+      ansible.builtin.template:
+        src: config.php.j2
+        dest: "{{ container_directory_root }}/organizr/www/organizr/data/config/config.php"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+
+    - name: "Organizr: Add sql script for adding tabs"
+      ansible.builtin.template:
+        src: tabs.sql.j2
+        dest: "{{ container_directory_root }}/organizr/www/organizr/tabs.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+
+    - name: "Organizr: Start organizr container"
+      community.docker.docker_container:
+        name: organizr
+        state: started
+  tags:
+    - organizr
+    - organizr_install
+  when: not _organizr_state.exists
+# End Block
+- name: "Organizr: PULL AND RESTART CONTAINER"
+  block:
+    - name: "Organizr: pull and restart container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: organizr
+        image: "{{ organizr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: bridge
+        volumes:
+          - "{{ container_directory_root }}/organizr:/config:rw"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        ports:
+          - "{{ organizr_port }}:80"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _organizr_status
+  tags:
+    - organizr
+    - organizr_restart
+  when: _organizr_state.exists

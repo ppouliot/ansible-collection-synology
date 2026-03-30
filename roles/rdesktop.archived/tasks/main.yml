@@ -1,0 +1,35 @@
+---
+- name: "RDesktop: Directory Structure"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  with_items:
+    - "{{ container_directory_root }}/rdesktop"
+    - "{{ container_directory_root }}/rdesktop/controller"
+- name: "RDesktop: Add permissions for docker user to the docker socket"
+  ansible.builtin.file:
+    path: /var/run/docker.sock
+    state: file
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+- name: "RDesktop: Deploy rdesktop using docker"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: rdesktop
+    image: "{{ rdesktop_container_image }}"
+    pull: true
+    retries: 5
+    delay: 30
+    network_mode: host
+#   ports:
+#     - 3389:3389
+    privileged: true
+    restart_policy: always
+    shm_size: "1GB"
+    volumes:
+      - "{{ container_directory_root }}/rdesktop:/config"
+      - /var/run/docker.sock:/var/run/docker.sock

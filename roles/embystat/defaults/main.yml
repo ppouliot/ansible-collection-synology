@@ -1,0 +1,10 @@
+---
+# defaults file for embystat
+---
+embystat_container_image: "ghcr.io/linuxserver/embystat:latest"
+
+emby_port: "8096"
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

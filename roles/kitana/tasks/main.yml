@@ -1,0 +1,32 @@
+---
+# tasks file for kitana
+- name: "Create directories to house kitana data"
+  file:
+    path: "{{ container_directory_root }}/kitana"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+- name: Create kitana container
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: kitana
+    image: "{{ kitana_container_image }}"
+    networks:
+      - name: synology-docker-network
+    pull: yes
+#   network_mode: container:gluetun
+#   network_mode: host
+    ports:
+     - "31337:31337"
+    volumes:
+      - "{{ container_directory_root }}/kitana:/app/data"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK: "022"
+    state: started
+    restart_policy: unless-stopped
+

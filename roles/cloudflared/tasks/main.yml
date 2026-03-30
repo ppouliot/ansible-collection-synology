@@ -1,0 +1,33 @@
+---
+# tasks file for cloudflared
+
+- name: "Cloudflared: Create directories to house cloudflared config data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/cloudflared"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: yes
+
+- name: "Cloudflared: Run cloudflared container"
+  block:
+    - name: "Cloudflared: Run cloudflared container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: cloudflared
+        image: "{{ cloudflared_container_image }}"
+        command: "tunnel run --token {{ cloudflared_api_token }}"
+        network_mode: host
+        pull: yes
+        privileged: yes
+        volumes:
+          - "{{ container_directory_root }}/cloudflared:/home/nonroot/.cloudflared"
+        env:
+          CLOUDFLARED_UID: "{{ user_puid }}"
+          CLOUDFLARED_GID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+        restart_policy: unless-stopped
+  tags:
+    - cloudflared
+  # End Block

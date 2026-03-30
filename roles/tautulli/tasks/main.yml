@@ -1,0 +1,120 @@
+---
+# tasks file for tautulli
+- name: "Tautulli: check for plex server log directory"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/plex/Library/Application Support/Plex Media Server/Logs"
+  register: _plex_logs_dir
+  tags:
+    - tautulli
+- name: "Tautulli: check for tautulli config directory"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/tautulli"
+  register: _tautulli_config_dir
+  tags:
+    - tautulli
+- name: "Tautulli: Create directories to house tautulli config data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/tautulli"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _tautulli_config_dir
+  tags:
+    - tautulli
+  when:
+    - _tautulli_config_dir is defined
+    - not _tautulli_config_dir.stat.exists
+- name: "Tautulli: Check if tautulli is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: tautulli
+  register: _tautulli_state
+  tags:
+    - tautulli
+- name: "Tautulli: create facts"
+  ansible.builtin.set_fact:
+    plex_logs_dir: "{{ _plex_logs_dir }}"
+    tautulli_config_dir: "{{ _tautulli_config_dir }}"
+    tautulli_state: "{{ _tautulli_state }}"
+  tags:
+    - tautulli
+- name: "Tautulli: create container"
+  block:
+    - name: "Tautulli: start container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: tautulli
+        image: "{{ tautulli_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        retries: 5
+        delay: 30
+        ports:
+          - "{{ tautulli_exposed_port }}:8181"
+        volumes:
+          - "{{ container_directory_root }}/tautulli:/config"
+          - "{{ container_directory_root }}/plex/Library/Application Support/Plex Media Server/Logs:/logs:ro"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+        state: started
+      register: _tautulli_status
+    - name: "Tautulli: set tautulli_is_running fact"
+      ansible.builtin.set_fact:
+        _tautulli_is_running: "{{ _tautulli_status.container.State.Running }}"
+  when:
+    - _plex_logs_dir.stat.exists
+    - not _tautulli_state.exists
+  tags:
+    - tautulli
+  # end block
+- name: "Tautulli: pull and restart container"
+  block:
+    - name: "Tautulli: start docker container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: tautulli
+        image: "{{ tautulli_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        retries: 5
+        delay: 30
+        ports:
+          - "{{ tautulli_exposed_port }}:8181"
+        volumes:
+          - "{{ container_directory_root }}/tautulli:/config"
+          - "{{ container_directory_root }}/plex/Library/Application Support/Plex Media Server/Logs:/logs:ro"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _tautulli_status
+    - name: "Tautulli: set tautulli_is_running fact"
+      ansible.builtin.set_fact:
+        _tautulli_is_running: "{{ _tautulli_status.container.State.Running }}"
+  when:
+    - _plex_logs_dir.stat.exists
+    - _tautulli_state.exists
+  tags:
+    - tautulli
+  # end block
+- name: "Tautulli: show facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "plex_logs_dir: {{ plex_logs_dir }}"
+    - "tautulli_config_dir: {{ _tautulli_config_dir }}"
+    - "tautulli_state: {{ _tautulli_state }}"
+  tags:
+    - tautulli

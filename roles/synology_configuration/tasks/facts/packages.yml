@@ -1,0 +1,36 @@
+---
+- name: Ensure local facts directory exists
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/facts"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+
+- name: Get installed Synology packages
+  ansible.builtin.command: "{{ synology_synopkg }} list --name"
+  changed_when: false
+  register: _syno_installed_packages
+
+- name: Get all available Synology packages
+  ansible.builtin.command: "{{ synology_synopkg }} showall"
+  changed_when: false
+  register: _syno_all_packages
+
+- name: Set package facts
+  ansible.builtin.set_fact:
+    syno_installed_packages: "{{ _syno_installed_packages.stdout_lines }}"
+    syno_all_packages: "{{ _syno_all_packages.stdout_lines }}"
+
+- name: Save package facts locally
+  ansible.builtin.copy:
+    content: |
+      # Synology package facts — {{ inventory_hostname }}
+      # Generated: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+      installed_packages: "{{ syno_installed_packages | to_nice_yaml }}"
+      available_packages: "{{ syno_all_packages | to_nice_yaml }}"
+    dest: "{{ playbook_dir }}/facts/{{ inventory_hostname }}_packages.yml"
+  delegate_to: localhost
+
+- name: Display package facts summary
+  ansible.builtin.debug:
+    msg: "Package facts saved → facts/{{ inventory_hostname }}_packages.yml ({{ syno_installed_packages | length }} installed)"

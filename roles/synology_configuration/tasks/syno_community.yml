@@ -1,0 +1,21 @@
+---
+- name: Check for package feeds file
+  ansible.builtin.stat:
+    path: /usr/syno/etc/packages/feeds
+  register: _synology_package_repositories
+
+- name: Create package feeds file from template
+  ansible.builtin.template:
+    src: feeds.j2
+    dest: /usr/syno/etc/packages/feeds
+    owner: root
+    group: root
+    mode: '0644'
+  when: not _synology_package_repositories.stat.exists
+
+- name: Check for package updates
+  ansible.builtin.command:
+    cmd: "{{ synology_synopkg }} checkupdateall"
+  register: _syno_community_repo_refresh
+  changed_when: false
+  when: synology_refresh_packages | default(false)

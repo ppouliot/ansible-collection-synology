@@ -1,0 +1,26 @@
+---
+- name: Configure some alias to usefulls tools we can run in containers
+  ansible.builtin.blockinfile:
+    path: /etc.defaults/.bashrc_profile
+    mode: "0640"
+    block: |
+      # Function to run the opentofu container
+      tofu() {
+        docker run --rm -it -v "$(pwd):/app" -w /app ghcr.io/opentofu/opentofu:latest "$@"
+      }
+      # Function to run Ansible dev tools in a container
+      ansible-dev() {
+        # The name of the container image
+        local IMAGE_NAME="ghcr.io/ansible/community-ansible-dev-tools:latest"
+        # Run the Docker container
+        # --rm: Automatically remove the container when it exits.
+        # -it: Run in interactive mode with a TTY.
+        # -v "$PWD":/opt/ansible: Mount the current directory into the container.
+        # $IMAGE_NAME: The container image to use.
+        # $@: Pass all arguments given to the function to the container.
+        docker run --rm -it -v "$PWD":/opt/ansible:Z "$IMAGE_NAME" "$@"
+      }
+    insertafter: EOF # Inserts the block at the end of the file. Other options: BOF, or a regex.
+    marker: "# {mark} ANSIBLE MANAGED BLOCK" # Custom marker for the block (optional)
+    create: true # Creates the file if it doesn't exist (optional)
+    backup: true # Creates a backup of the original file before modification (optional)

@@ -1,0 +1,46 @@
+---
+# =============================================================================
+# site.yml — Synology NAS provisioning
+#
+# Phase 1: DSM API bootstrap (no SSH required)
+#   - Enable SSH, SMB, user homes
+#   - Add package feeds, manage users/groups
+#
+# Phase 2: SSH configuration
+#   - Install packages, SSH keys, pip, docker, etc.
+#
+# Usage:
+#   ansible-playbook -i inventory.ini site.yml
+#   ansible-playbook -i inventory.ini site.yml --tags synology_bootstrap
+#   ansible-playbook -i inventory.ini site.yml --tags synology_configuration
+# =============================================================================
+
+# ── Phase 1: Bootstrap via DSM API ──────────────────────────────────────────
+- name: Phase 1 — Bootstrap via DSM API
+  hosts: synology
+  connection: local
+  gather_facts: false
+  tags: synology_bootstrap
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  roles:
+    - synology_bootstrap
+
+# ── Phase 2: Configure via SSH ───────────────────────────────────────────────
+- name: Phase 2 — Configure via SSH
+  hosts: synology
+  gather_facts: false
+  tags: synology_configuration
+  pre_tasks:
+    - name: Wait for SSH to be ready
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        port: "{{ synology_bootstrap_ssh_port | default(22) }}"
+        timeout: 180
+        delay: 5
+        connect_timeout: 10
+        state: started
+      delegate_to: localhost
+      tags: always
+  roles:
+    - synology_configuration

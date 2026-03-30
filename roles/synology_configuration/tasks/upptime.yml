@@ -1,0 +1,26 @@
+---
+
+# Upptime Installation for service monitoring at host and org level
+- name: "Install the Uptime Repostory to monitor externall/internal services"
+  ansible.builtin.git:
+    repo: https://github.com/interoperable/upptime.git
+    dest: "/etc.defaults/interop.d/upptime.{{ ansible_facts.postal }}"
+    force: false
+    update: true
+    version: 'master'
+  when: ansible_facts.postal is defined
+
+- name: "Install the Uptime Repostory to use to monitor individal  host services and uptime"
+  ansible.builtin.git:
+    repo: https://github.com/interoperable/upptime.git
+    dest: "/etc/interop.d/upptime.{{ hostvars[inventory_hostname].ansible_default_ipv4.macaddress | replace(':', '') }}"
+    force: false
+    update: true
+    version: 'master'
+  when: ansible_default_ipv4.macaddress is defined
+
+# Need to set facts for
+# interoperable_upptime
+# interoperable_upptime_url
+# interoperable_upptime_site_url
+# interoperable_upptime_site_unit_url

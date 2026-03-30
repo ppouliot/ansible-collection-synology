@@ -1,0 +1,76 @@
+---
+
+- name: "SECRET_KEY_BASE: Check if {{ container_directory_root }}/dockge container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/dockge"
+  register: _dockge_config_dir
+  tags:
+    - secret_key_base
+
+- name "Create SECRET_KEY_BASE"
+  ansible.builtin.shell:
+    cmd: 'tr -dc A-Za-z0-9 </dev/urandom | head -c 64; echo'
+  register: _secret_key_base
+  tags:
+    - secret_key_base
+  when not 
+
+
+- name: "Set SECRET_KEY_BASE fact"
+  ansible.builtin.set_fact:
+     secret_key_base: "{{ _secret_key_base }}"
+
+- name: "DOCKGE: Check if {{ container_directory_root }}/dockge container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/dockge"
+  register: _dockge_config_dir
+  tags:
+    - dockge
+
+
+- name: "DOCKGE: Create directory structure for containers"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+  with_items:
+    - "{{ container_directory_root }}/dockge"
+    - "{{ container_directory_root }}/dockge/data"
+    - "{{ container_directory_root }}/dockge/stacks"
+  register: _dockge_config_dir
+  tags:
+    - dockge
+    - dockge_root
+  when:
+    - _dockge_config_dir is defined
+    - not _dockge_config_dir.stat.exists
+
+- name: "DOCKGE: Check if DOCKGE container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: dockge
+  register: _dockge_state
+  tags:
+    - dockge
+
+- name: "DOCKGE: Launch container"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: "{{ dockge_container_name }}"
+    image: "{{ dockge_container_image }}"
+    network_mode: host
+    restart_policy: always
+    pull: true
+    retries: 5
+    delay: 30
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK: "022"
+      DOCKGE_STACKS_DIR: "/opt/stacks"
+    volumes:
+      - "{{ container_directory_root }}/dockge/data:/app/data"
+      - "{{ container_directory_root }}/dockge/stacks:/opt/stacks"

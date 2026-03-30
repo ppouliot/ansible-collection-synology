@@ -1,0 +1,21 @@
+---
+- name: "Add SSH Keys from url to Synology Connection User"
+  ansible.posix.authorized_key:
+    user: "{{ synology_dsm_username | default(ansible_user) }}"
+    state: present
+    key: "{{ sshkey_url }}"
+    manage_dir: true
+
+- name: Root ssh keys
+  become: true
+  block:
+    - name: "Check if container directory .ssh exist"
+      ansible.builtin.stat:
+        path: "/root/.ssh"
+      register: _dot_ssh_exists
+
+    - name: "Add SSH Keys from url to root"
+      ansible.posix.authorized_key:
+        user: root
+        state: present
+        key: "{{ sshkey_url }}"

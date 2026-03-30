@@ -1,0 +1,44 @@
+---
+
+- name: Get list of installed packages
+  when: true
+  changed_when: false
+  ansible.builtin.command: "{{ synology_synopkg }} list --name"
+  register: _synology_package_list
+  ignore_errors: true
+
+- name:  Show _synology_package_list.stout
+  ansible.builtin.debug:
+    var: _synology_package_list.stdout
+
+- name: Check if Container Manager is already installed using synopkg status
+  command: "{{ synology_synopkg }} status ContainerManager"
+  register: _container_manager_synopkg_status
+  ignore_errors: true # Ignore error if package is not found
+
+- name: Check if container manager is already installed  using synopkg is_onoff
+  ansible.builtin.command:
+    cmd: "{{ synology_synopkg }} is_onoff ContainerManager"
+  register: _container_manager_synopkg_onoff
+  ignore_errors: true
+
+- name: Show _container_manager_synopkg_onoff.stout
+  ansible.builtin.debug:
+    var: _container_manager_synopkg_onoff.stdout
+
+- name: Check if Container Manager is already installed using synosystemctl get-active-status pkgctl-ContainerManager
+  ansible.builtin.command:
+    cmd: "{{ synology_synosystemctl }} get-active-status pkgctl-ContainerManager"
+  register: _container_manager_sanosystemctl_get_active_status
+  ignore_errors: true
+
+- name: Show _container_manager_sanosystemctl_get_active_status.stdout
+  ansible.builtin.debug:
+    var: _container_manager_sanosystemctl_get_active_status.stdout
+
+- name: Get list of synology accounts
+  become: true
+  ansible.builtin.command: "{{ synology_synouser }} --enum all"
+  when: true
+  changed_when: false
+  register: _synology_users_list

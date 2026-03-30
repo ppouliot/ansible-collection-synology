@@ -1,0 +1,37 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- name: SWARM - Create the swarm on the first swarm manager
+  hosts: swarm_group_members[0]
+  any_errors_fatal: true
+  become: true
+  tasks:
+    - name: "Check if the host is part of a swarm"
+      ansible.builtin.shell: /usr/local/bin/docker info --format '{{ "{{.Swarm.LocalNodeState}}" }}'
+      register: _swarm_status
+      changed_when: false
+
+    - name: Init a new swarm with default parameters
+      community.docker.docker_swarm:
+        state: present
+      when: "'inactive' in _swarm_status.stdout"  # Conditional execution
+      register: _swarm_init
+#     changed_when: "'Swarm initialized' in _swarm_init.stdout"
+      changed_when: "'New Swarm cluster created' in _swarm_init.actions"
+
+    - name: Get swarm_info from nodes
+      community.docker.docker_swarm_info:
+      register: _swarm_info
+      changed_when: false
+
+    - name: set the swarm facts
+      ansible.builtin.set_fact:
+        swarm_manager_ip: "{{ swarm_manager_ip }}"
+        swarm_worker_ip: "{{ swarm_worker_ip }}"
+        swarm_status: "{{ _swarm_status.stdout }}"
+        swarm_info: "{{ _swarm_info }}"
+        swarm_facts: "{{ _swarm_info['swarm_facts'] }}"
+        swarm_join_tokens: "{{ _swarm_info['swarm_facts']['JoinTokens'] }}"
+        swarm_manager_token: "{{ _swarm_info['swarm_facts']['JoinTokens']['Manager'] }}"
+        swarm_worker_token: "{{ _swarm_info['swarm_facts']['JoinTokens']['Worker'] }}"
+        cacheable: true

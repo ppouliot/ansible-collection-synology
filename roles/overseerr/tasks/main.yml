@@ -1,0 +1,88 @@
+---
+
+- name: "Overseerr: Check if Overseerr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/overseerr"
+  register: _overseerr_config_dir
+  tags:
+    - overseerr
+    - overseerr_root
+
+- name: "Overseerr: Create directories to house overseerr data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/overseerr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _overseerr_config_dir
+  tags:
+    - overseerr
+    - overseerr_root
+  when:
+    - _overseerr_config_dir is defined
+    - not _overseerr_config_dir.stat.exists
+
+- name: "Overseerr: Check if Overseerr container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: overseerr
+  register: _overseerr_state
+  tags:
+    - overseerr
+
+- name: "Overseerr: set facts"
+  ansible.builtin.set_fact:
+    overseer_port: "{{ overseerr_port }}"
+    overseer_config_dir: "{{ _overseerr_config_dir }}"
+  tags:
+    - overseerr
+
+- name: "Overseerr: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: "Overseerr: Create overseerr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: overseerr
+        image: "{{ overseerr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        ports:
+          - "{{ overseerr_port }}:{{ overseerr_port }}"
+        volumes:
+          - "{{ container_directory_root }}/overseerr:/config"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart_policy: unless-stopped
+      register: _overseerr_status
+    - name: "Overseerr: Set overseerr_is_running fact"
+      ansible.builtin.set_fact:
+        overseer_is_running: "{{ _overseerr_status.container.State.Running }}"
+    - name: "Overseerr: Wait for Overseerr HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ overseerr_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Overseerr: Stop overseerr container"
+      community.docker.docker_container:
+        name: overseerr
+        state: stopped
+    # INSERT CONFIGURATION HERE
+    - name: "Overseerr: Start overseerr container"
+      community.docker.docker_container:
+        name: overseerr
+        state: started
+  tags:
+    - overseerr
+    - overseerr_install
+  when: not _overseerr_state.exists

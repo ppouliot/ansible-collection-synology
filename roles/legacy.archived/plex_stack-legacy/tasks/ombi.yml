@@ -1,0 +1,28 @@
+---
+
+- name: "Create directories to house ombi data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/ombi"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+
+- name: Create ombi container
+  community.general.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: ombi
+    image: "{{ ombi_container_image }}"
+    pull: yes
+    volumes:
+      - "{{ container_directory_root }}/ombi:/config"
+    ports:
+      - "{{ ombi_exposed_port }}:3579"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK_SET: "022"
+    state: started
+    restart_policy: unless-stopped

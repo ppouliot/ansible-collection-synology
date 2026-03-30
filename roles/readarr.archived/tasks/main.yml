@@ -1,0 +1,215 @@
+---
+- name: "Readarr: Check if Readarr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/readarr"
+  register: _readarr_config_dir
+  tags:
+    - readarr
+    - readarr_root
+- name: "Readarr: Create directories to house readarr data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/readarr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _readarr_config_dir
+  tags:
+    - readarr
+    - readarr_root
+  when:
+    - _readarr_config_dir is defined
+    - not _readarr_config_dir.stat.exists
+- name: "Readarr: Check if Readarr container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: readarr
+  register: _readarr_state
+  tags:
+    - readarr
+- name: "Readarr: Container installation and configuration block"
+  block:
+    - name: "Readarr: Create readarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: readarr
+        image: "{{ readarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+#       network_mode: host
+#       ports:
+#         - "7878:7878"
+        volumes:
+          - "{{ container_directory_root }}/readarr:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/books:/books"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK_SET: "022"
+        restart_policy: unless-stopped
+      register: _readarr_status
+    - name: "Readarr: Set readarr_is_running fact"
+      ansible.builtin.set_fact:
+        readarr_is_running: "{{ _readarr_status.container.State.Running }}"
+    - name: "Readarr: Wait for Readarr HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:7878"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: Sleep for 60 seconds and continue with play
+      wait_for:
+        timeout: 60
+    - name: "Readarr: Stop Readarr container"
+      community.docker.docker_container:
+        name: readarr
+        state: stopped
+    - name: "Readarr: Add sql script ReadarrRootFolders.sql"
+      ansible.builtin.template:
+        src: ReadarrRootFolders.sql.j2
+        dest: "{{ container_directory_root }}/readarr/ReadarrRootFolders.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: 0770
+    - name: "Readarr: import ReadarrRootFolders.sql into readarr.db"
+      ansible.builtin.command:
+        cmd: 'sqlite3 readarr.db ".read ReadarrRootFolders.sql"'
+        chdir: "{{ container_directory_root }}/readarr"
+    - name: "Readarr: Add sql script ReadarrDownloadClients.sql"
+      ansible.builtin.template:
+        src: ReadarrDownloadClients.sql.j2
+        dest: "{{ container_directory_root }}/readarr/ReadarrDownloadClients.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: 0770
+    - name: "Readarr: Check for ReadarrDownloadClients"
+      ansible.builtin.command:
+        cmd: 'sqlite3 readarr.db "SELECT Name FROM DownloadClients;"'
+        chdir: "{{ container_directory_root }}/readarr"
+      register: _readarr_download_clients
+    - name: "Readarr: show _readarr_download_clients"
+      ansible.builtin.debug:
+        msg: "{{ _readarr_download_clients }}"
+    - name: "Readarr: import ReadarrDownloadClients.sql into readarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 readarr.db ".read ReadarrDownloadClients.sql"'
+        chdir: "{{ container_directory_root }}/readarr"
+      when: _readarr_download_clients.stdout == ""
+    - name: "Readarr: Add sql script ReadarrIndexers.sql"
+      ansible.builtin.template:
+        src: ReadarrIndexers.sql.j2
+        dest: "{{ container_directory_root }}/readarr/ReadarrIndexers.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: 0770
+    - name: "Readarr: Check for ReadarrIndexers"
+      ansible.builtin.command:
+        cmd: 'sqlite3 readarr.db "SELECT Name FROM Indexers;"'
+        chdir: "{{ container_directory_root }}/readarr"
+      register: _readarr_indexers
+    - name: "Readarr: show _readarr_indexers"
+      ansible.builtin.debug:
+        msg: "{{ _readarr_indexers }}"
+    - name: "Readarr: import ReadarrIndexers.sql into readarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 readarr.db ".read ReadarrIndexers.sql"'
+        chdir: "{{ container_directory_root }}/readarr"
+      when: _readarr_indexers.stdout == ""
+#    - name: "Readarr: Check for ReadarrNotifications"
+#      ansible.builtin.command:
+#        cmd: 'sqlite3 readarr.db "SELECT Name FROM Notifications;"'
+#        chdir: "{{ container_directory_root }}/readarr"
+#      register: _readarr_notifications
+#    - name: "Readarr: Add sql script ReadarrNotifications.sql"
+#      ansible.builtin.template:
+#        src: ReadarrNotifications.sql.j2
+#        dest: "{{ container_directory_root }}/readarr/ReadarrNotifications.sql"
+#        owner: "{{ user_puid }}"
+#        group: "{{ group_pgid }}"
+#        mode: 0770
+#    - name: "Readarr: Check for ReadarrNotifications"
+#      ansible.builtin.command:
+#        cmd: 'sqlite3 readarr.db "SELECT Name FROM Notifications;"'
+#        chdir: "{{ container_directory_root }}/readarr"
+#      register: _readarr_notifications
+#    - name: "Readarr: show _readarr_notifications"
+#      ansible.builtin.debug:
+#        msg: "{{ _readarr_notifications }}"
+#    - name: "Readarr: import ReadarrNotifications.sql into readarr.db"  # noqa empty-string-compare
+#      ansible.builtin.command:
+#        cmd: 'sqlite3 readarr.db ".read ReadarrNotifications.sql"'
+#        chdir: "{{ container_directory_root }}/readarr"
+#      when: _readarr_notifications.stdout == ""
+    - name: "Readarr: Start Readarr container"
+      community.docker.docker_container:
+        name: readarr
+        state: started
+ # End Block
+  tags:
+    - readarr
+    - readarr_install
+  when: not _readarr_state.exists
+- name: "Readarr: Container pull and restart"
+  block:
+    - name: "Readarr: restart readarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: readarr
+        image: "{{ readarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+#       network_mode: host
+#       ports::
+#         - "8787:8787"
+        volumes:
+          - "{{ container_directory_root }}/readarr:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/books:/books"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK_SET: "022"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _readarr_status
+  when: _readarr_state.exists
+- name: "Readarr: Read Readarr API key"
+  community.general.xml:
+    path: /volume1/docker/readarr/config.xml
+    xpath: /Config/ApiKey
+    content: text
+  register: readarr_xml
+  retries: 3
+  delay: 10
+  until: readarr_xml is not failed
+- name: "readarr: createi api key variablet"
+  ansible.builtin.debug:
+    var: readarr_xml.matches[0].ApiKey
+- name: "readarr: print api key fact"
+  ansible.builtin.set_fact:
+    readarr_api_key: "{{ readarr_xml.matches[0].ApiKey }}"
+    cacheable: true
+  tags:
+    - readarr
+    - readarr_facts
+- name: "Readarr: Show Facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "readarr_config_dir: {{ _readarr_config_dir }}"
+    - "readarr_api_key {{ readarr_api_key }}"
+  tags:
+    - readarr
+    - readarr_facts

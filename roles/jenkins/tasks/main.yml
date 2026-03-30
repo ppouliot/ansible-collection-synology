@@ -1,0 +1,13 @@
+---
+# tasks file for jenkins
+############################################
+#       Jenkins Master and Agents          #
+############################################
+- name: "Jenkins: Launch Jenkins Contianer"
+  include_tasks: jenkins.yml
+  when:
+    - jenkins_enable == true
+- name: "Jenkins: Launch Jenkins Agent Contianer"
+  include_tasks: jenkins_agent.yml
+  when:
+    - jenkins_agent_enable == true

@@ -1,0 +1,31 @@
+---
+# tasks file for tvheadend
+- name: "Create directories to house tvheadend data"
+  file:
+    path: "{{ container_directory_root }}/tvheadend"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+- name: Create tvheadend container
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: tvheadend
+    image: "{{ tvheadend_container_image }}"
+    pull: true
+    retries: 5
+    delay: 30
+#   network_mode: container:gluetun
+#  network_mode: host
+    ports:
+      - "9981:9981"
+      - "9982:9982"
+    volumes:
+      - "{{ container_directory_root }}/tvheadend:/config"
+      - "{{ container_directory_root }}/tv:/recordings"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+    restart_policy: unless-stopped

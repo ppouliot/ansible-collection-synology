@@ -1,0 +1,262 @@
+---
+- name: "Mylar: Check if Mylar container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/mylar"
+  register: _mylar_config_dir
+  tags:
+    - mylar
+    - mylar_root
+- name: "Mylar: Create directories to house mylar data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/mylar"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _mylar_config_dir
+  tags:
+    - mylar
+    - mylar_root
+  when:
+    - _mylar_config_dir is defined
+    - not _mylar_config_dir.stat.exists
+- name: "Mylar: Check if Mylar container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: mylar
+  register: _mylar_state
+  tags:
+    - mylar
+
+- name: "Mylar: set facts"
+  ansible.builtin.set_fact:
+    mylar_port: "{{ mylar_port }}"
+    mylar_config_dir: "{{ _mylar_config_dir }}"
+  tags:
+    - mylar
+- name: "Mylar: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: "Mylar: Create mylar container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: mylar
+        image: "{{ mylar_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/mylar:/config"
+          - "{{ container_directory_root }}/tv:/tv"
+          - "{{ container_directory_root }}/movies:/movies"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart_policy: unless-stopped
+      register: _mylar_status
+    - name: "Mylar: Set mylar_is_running fact"
+      ansible.builtin.set_fact:
+        mylar_is_running: "{{ _mylar_status.container.State.Running }}"
+    - name: "Mylar: Wait for Mylar HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ mylar_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Mylar: Stop mylar container"
+      community.docker.docker_container:
+        name: mylar
+        state: stopped
+    - name: "Mylar: set mylar_port in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: general
+        option: port
+        value: "{{ mylar_port }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set path_mappings in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: general
+        option: path_mappings
+        value:
+          - "/tv/"
+          - "/config/"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set use_sonarr in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: general
+        option: use_sonarr
+        value: "True"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set use_radarr in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: general
+        option: use_radarr
+        value: "True"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set path_mappings_movie in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: general
+        option: path_mappings_movie
+        value:
+          - "/movies/"
+          - "/config/"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set enabled_providers in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: general
+        option: enabled_providers
+        value:
+          - "opensubtitles"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set anti_captcha_provider in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: general
+        option: anti_captcha_provider
+        value: death-by-captcha
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set ip of sonarr in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: sonarr
+        option: ip
+        value: "{{ ansible_default_ipv4.address }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set sonarr port in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: sonarr
+        option: port
+        value: "{{ sonarr_port }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set sonarr apikey in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: sonarr
+        option: apikey
+        value: "{{ sonarr_api_key }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set ip of radarr in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: radarr
+        option: ip
+        value: "{{ ansible_default_ipv4.address }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set radarr_port in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: radarr
+        option: port
+        value: "{{ radarr_port }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set radarr_api_key in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: radarr
+        option: apikey
+        value: "{{ radarr_api_key }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set opensubtitles_username in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: opensubtitles
+        option: username
+        value: "{{ opensubtitles_username }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set opensubtitles_password in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: opensubtitles
+        option: password
+        value: "{{ opensubtitles_password }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set opensubtitles_vip_member in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: opensubtitles
+        option: vip
+        value: "{{ opensubtitles_vip_member | capitalize }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set deathbycaptcha_username in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: deathbycaptcha
+        option: username
+        value: "{{ deathbycaptcha_username }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: set deathbycaptcha_password in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/mylar/config/config.ini"
+        section: deathbycaptcha
+        option: password
+        value: "{{ deathbycaptcha_password }}"
+        mode: '0775'
+        backup: yes
+    - name: "Mylar: Start mylar container"
+      community.docker.docker_container:
+        name: mylar
+        state: started
+  tags:
+    - mylar
+    - mylar_install
+  when: not _mylar_state.exists
+# End Block
+- name: "Mylar: PULL AND RESTART CONTAINER"
+  block:
+    - name: "Mylar: pull and restart container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: mylar
+        image: "{{ mylar_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/mylar:/config"
+          - "{{ container_directory_root }}/tv:/tv"
+          - "{{ container_directory_root }}/movies:/movies"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _mylar_status
+  tags:
+    - mylar
+    - mylar_restart
+  when: _mylar_state.exists

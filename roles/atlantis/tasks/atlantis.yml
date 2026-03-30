@@ -1,0 +1,121 @@
+---
+
+- name: "Atlantis: Check if container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/atlantis"
+  register: _atlantis_config_dir
+
+- name: "Atlantis: Check if Atlantis container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: atlantis
+  register: _atlantis_state
+
+- name: "Atlantis: Filesystem Directories"
+  block:
+    - name: Create Atlantis Daemon Directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0755"
+        recurse: true
+      with_items:
+          - "{{ container_directory_root }}/atlantis"
+          - "{{ container_directory_root }}/atlantis/bin"
+          - "{{ container_directory_root }}/atlantis/src"
+      tags:
+        - atlantis
+        - atlantis_root
+      when:
+        - _atlantis_config_dir is defined
+        - not _atlantis_config_dir.stat.exists
+
+    - name: Create Atlantis .ssh configure directory
+      file:
+        path: "{{ container_directory_root }}/atlantis/.ssh"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0600"
+        recurse: true
+      tags:
+        - atlantis
+        - atlantis_ssh
+      when:
+        - _atlantis_config_dir is defined
+
+- name: "Atlantis config file"
+  ansible.builtin.template:
+    src: "atlantis.env.j2"
+    dest: "{{ container_directory_root }}/atlantis/src/atlantis.env"
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0600"
+  register: atlantis_env
+    
+- name: "Atlantis: Container installation"
+  when: not _atlantis_state.exists
+  block:
+    - name: Create Atlantis container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: atlantis
+        image: "{{ atlantis_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        retries: 5
+        delay: 30
+        network_mode: bridge
+        volumes:
+          - "{{ container_directory_root }}/atlantis/src:/src:rw"
+          - "{{ container_directory_root }}/atlantis/.ssh:/.ssh:rw"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          ATLANTIS_ATLANTIS_URL: "{{ atlantis_atlantis_url }}"
+          ATLANTIS_GH_USER: "{{ atlantis_gh_user }}"
+          ATLANTIS_GH_TOKEN: "{{ atlantis_gh_token }}"
+          ATLANTIS_REPO_ALLOWLIST: "{{ atlantis_repo_allowlist }}"
+          ATLANTIS_LOCKING_DB_TYPE: "{{ atlantis_locking_db_type }}"
+          ATLANTIS_REDIS_DB: "{{ atlantis_redis_db }}"
+          ATLANTIS_REDIS_HOST: "{{ atlantis_redis_host }}"
+        ports:
+          - "{{ atlantis_port }}:{{ atlantis_port }}"
+        restart_policy: unless-stopped
+
+- name: "Atlantis: pull and restart container"
+  when: atlantis_env.changed
+  block:
+    - name: Restart Atlantis
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: atlantis
+        image: "{{ atlantis_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        retries: 5
+        delay: 30
+        network_mode: bridge
+        volumes:
+          - "{{ container_directory_root }}/atlantis/src:/src:rw"
+          - "{{ container_directory_root }}/atlantis/.ssh:/.ssh:rw"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          ATLANTIS_ATLANTIS_URL: "{{ atlantis_atlantis_url }}"
+          ATLANTIS_GH_USER: "{{ atlantis_gh_user }}"
+          ATLANTIS_GH_TOKEN: "{{ atlantis_gh_token }}"
+          ATLANTIS_REPO_ALLOWLIST: "{{ atlantis_repo_allowlist }}"
+          ATLANTIS_LOCKING_DB_TYPE: "{{ atlantis_locking_db_type }}"
+          ATLANTIS_REDIS_DB: "{{ atlantis_redis_db }}"
+          ATLANTIS_REDIS_HOST: "{{ atlantis_redis_host }}"
+        ports:
+          - "{{ atlantis_port }}:{{ atlantis_port }}"
+        restart: true
+        restart_policy: unless-stopped

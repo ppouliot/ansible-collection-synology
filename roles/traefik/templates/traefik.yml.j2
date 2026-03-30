@@ -1,0 +1,32 @@
+api:
+  dashboard: true
+  insecure: true
+  debug: false
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+serversTransport:
+  insecureSkipVerify: true
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: synology-docker-network
+certificatesResolvers:
+  letencrypt:
+    acme:
+      email: "{{ cloudflare_email }}"
+      storage: /certs/acme.json
+      # caServer: https://acme-v02.api.letsencrypt.org/directory # prod (default)
+      # caServer: https://acme-staging-v02.api.letsencrypt.org/directory # staging
+        caServer: "{{ letsencrypt_ca_server }}"
+      dnsChallenge:
+        provider: cloudflare
+        delayBeforeCheck: 10

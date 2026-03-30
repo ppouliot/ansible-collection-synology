@@ -1,0 +1,16 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+DROP TABLE "Notifications";
+CREATE TABLE IF NOT EXISTS "Notifications" ("Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Name" TEXT NOT NULL, "OnGrab" INTEGER NOT NULL, "OnDownload" INTEGER NOT NULL, "Settings" TEXT NOT NULL, "Implementation" TEXT NOT NULL, "ConfigContract" TEXT, "OnUpgrade" INTEGER, "Tags" TEXT, "OnRename" INTEGER NOT NULL, "OnHealthIssue" INTEGER NOT NULL, "IncludeHealthWarnings" INTEGER NOT NULL, "OnMovieDelete" INTEGER NOT NULL, "OnMovieFileDelete" INTEGER NOT NULL DEFAULT 0, "OnMovieFileDeleteForUpgrade" INTEGER NOT NULL DEFAULT 0, "OnApplicationUpdate" INTEGER NOT NULL DEFAULT 0, "OnMovieAdded" INTEGER NOT NULL DEFAULT 0, "OnHealthRestored" INTEGER NOT NULL DEFAULT 0, "OnManualInteractionRequired" INTEGER NOT NULL DEFAULT 0);
+INSERT INTO "Notifications" VALUES(1,'Plex Media Server',0,1,replace('{
+  "server": "http://{{ ansible_default_ipv4.address }}:32400",
+  "host": "{{ ansible_default_ipv4.address }}",
+  "port": 32400,
+  "useSsl": false,
+  "authToken": "{{ plex_authtoken }}",
+  "signIn": "startOAuth",
+  "updateLibrary": true,
+  "isValid": true
+}','
+',char(10)),'PlexServer','PlexServerSettings',1,'[]',1,0,0,1,1,1,0,0,0,0);
+COMMIT;

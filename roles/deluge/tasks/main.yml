@@ -1,0 +1,251 @@
+---
+
+- name: "Deluge: Check for downloads directory"
+  ansible.builtin.stat:
+    path: /volume1/docker/downloads
+  register: _deluge_download_dir
+  tags:
+    - deluge
+- name: "Deluge: Check for torrents directory"
+  ansible.builtin.stat:
+    path: /volume1/docker/downloads/torrents
+  register: _deluge_watch_dir
+  tags:
+    - deluge
+
+- name: "Deluge: Check for deluge container directory"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/deluge"
+  register: _deluge_config_dir
+  tags:
+    - deluge
+
+- name: "Deluge: Create directories to house deluge data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/deluge"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _deluge_config_dir
+  when:
+    - _deluge_config_dir is defined
+    - not _deluge_config_dir.stat.exists
+  tags:
+    - deluge
+
+- name: "Deluge: Create additional deluge configuration directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  with_items:
+    - "{{ container_directory_root }}/deluge/icons"
+    - "{{ container_directory_root }}/deluge/plugins"
+    - "{{ container_directory_root }}/deluge/ssl"
+    - "{{ container_directory_root }}/deluge/state"
+  tags:
+    - deluge
+
+- name: "Deluge: Get Deluge WebAPI Plugin"
+  ansible.builtin.get_url:
+    url: "{{ deluge_webapi_plugin_url }}"
+    dest: "{{ container_directory_root }}/deluge/plugins/{{ deluge_webapi_plugin_file }}"
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+  tags:
+    - deluge
+- name: "Deluge: Check if deluge is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: deluge
+  register: _deluge_state
+  tags:
+    - deluge
+
+- name: "Deluge: set facts"
+  ansible.builtin.set_fact:
+    deluge_port: "{{ deluge_port }}"
+    deluge_download_dir: "{{ _deluge_download_dir }}"
+    deluge_config_dir: "{{ _deluge_config_dir }}"
+    deluge_watch_dir: "{{ _deluge_watch_dir }}"
+    deluge_state: "{{ _deluge_state }}"
+  tags:
+    - deluge
+- name: "Deluge: CONTAINER INSTALL AND CONFIGURE"
+  block:
+    - name: "Deluge: Create deluge container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: deluge
+        image: "{{ deluge_container_image }}"
+        networks:
+          - name: synology-docker-network
+        network_mode: container:gluetun
+        pull: true
+        volumes:
+          - "{{ container_directory_root }}/deluge:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          DELUGE_LOGLEVEL: "error"
+        restart_policy: unless-stopped
+      register: _deluge_status
+    - name: "Deluge: Set deluge_is_running fact"
+      ansible.builtin.set_fact:
+        deluge_is_running: "{{ _deluge_status.container.State.Running }}"
+    - name: "Deluge: Wait for deluge to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ deluge_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Deluge: Stop deluge"
+      community.docker.docker_container:
+        name: deluge
+        state: stopped
+      register: _deluge_status
+    - name: "Deluge: Add deluge/auth"
+      ansible.builtin.template:
+        src: auth.j2
+        dest: "{{ container_directory_root }}/deluge/auth"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0775"
+      register: _deluge_auth_config
+
+    - name: "Deluge: Add deluge/core.conf"
+      ansible.builtin.template:
+        src: core.conf.j2
+        dest: "{{ container_directory_root }}/deluge/core.conf"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0775"
+      register: _deluge_core_config
+
+    - name: "Deluge: Add deluge/autoadd.conf"
+      ansible.builtin.template:
+        src: autoadd.conf.j2
+        dest: "{{ container_directory_root }}/deluge/autoadd.conf"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0775"
+      register: _deluge_autoadd_config
+
+    - name: "Deluge: Add deluge/extractor.conf"
+      ansible.builtin.template:
+        src: extractor.conf.j2
+        dest: "{{ container_directory_root }}/deluge/extractor.conf"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0775"
+      register: _deluge_extractor_config
+
+    - name: "Deluge: Add deluge/hostlist.conf"
+      ansible.builtin.template:
+        src: hostlist.conf.j2
+        dest: "{{ container_directory_root }}/deluge/hostlist.conf"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0775"
+      register: _deluge_hostlist_config
+
+    - name: "Deluge: Add deluge/web.conf"
+      ansible.builtin.template:
+        src: web.conf.j2
+        dest: "{{ container_directory_root }}/deluge/web.conf"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0775"
+      register: _deluge_web_config
+
+    - name: "Deluge: Create deluge container (post-config)"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: deluge
+        image: "{{ deluge_container_image }}"
+        network_mode: container:gluetun
+        pull: true
+        state: started
+        volumes:
+          - "{{ container_directory_root }}/deluge:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          DELUGE_LOGLEVEL: "error"
+        restart_policy: unless-stopped
+      register: _deluge_status
+
+    - name: "Deluge: Wait for deluge to come up and test with new password"
+      ansible.builtin.uri:
+        url: "http://deluge:{{ deluge_password }}@{{ ansible_default_ipv4.address }}:{{ deluge_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30 # retry X times
+      delay: 60 # pause for X sec b/w each call
+  tags:
+    - deluge
+  when: not _deluge_state.exists
+  # End Block
+- name: "Deluge: CONTAINER PULL AND RESTART"
+  block:
+    - name: "Deluge: pull and restart container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: deluge
+        image: "{{ deluge_container_image }}"
+        networks:
+          - name: synology-docker-network
+        network_mode: container:gluetun
+        pull: true
+        volumes:
+          - "{{ container_directory_root }}/deluge:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          DELUGE_LOGLEVEL: "error"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _deluge_status
+
+    - name: "Deluge: Set deluge_is_running fact"
+      ansible.builtin.set_fact:
+        deluge_is_running: "{{ _deluge_status.container.State.Running }}"
+
+  # End Block
+  tags:
+    - deluge
+  when: _deluge_state.exists
+
+- name: "Deluge: print facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "deluge_config_dir: {{ deluge_config_dir }}"
+    - "deluge_port: {{ deluge_port }}"
+    - "deluge_download_dir: {{ deluge_download_dir }}"
+    - "deluge_watch_dir: {{ deluge_watch_dir }}"
+    - "deluge_state: {{ deluge_state }}"
+    - "deluge_is_running: {{ deluge_is_running }}"
+  tags:
+    - deluge

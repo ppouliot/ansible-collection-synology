@@ -1,0 +1,41 @@
+---
+
+- name: "Pi-Hole: Create directory structure for containers"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+  with_items:
+    - "{{ container_directory_root }}/pihole"
+    - "{{ container_directory_root }}/pihole/config"
+    - "{{ container_directory_root }}/pihole/dnsmasq.d"
+- name: "Pi-Hole: Launch Pi-Hole container"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: "{{ pihole_container_name }}"
+    image: "{{ pihole_container_image }}"
+#   networks:
+#     - name: synology-docker-network
+    network_mode: host
+    restart_policy: always
+    # Increase shared memory due to crash
+    # https://github.com/pi-hole/docker-pi-hole/issues/571
+    shm_size: 2G
+    pull: true
+    retries: 5
+    delay: 30
+    env:
+      PIHOLE_UID: "{{ user_puid }}"
+      PIHOLE_GID: "{{ group_pgid }}"
+      ServerIP: "{{ ansible_default_ipv4.address }}"
+      WEBPASSWORD: "{{ pihole_webpassword }}"
+      WEB_PORT: "{{ pihole_web_port }}"
+      PIHOLE_DNS_: "{{ pihole_dns_1 }};{{ pihole_dns_2 }}"
+      DNSMASQ_LISTENING: "{{ pihole_dnsmasq_listening }}"
+      TZ: "{{ default_timezone }}"
+      TEMPERATUREUNIT: "{{ pihole_temperature }}"
+    volumes:
+      - "{{ container_directory_root }}/pihole/config:/etc/pihole"
+      - "{{ container_directory_root }}/pihole/dnsmasq.d:/etc/dnsmasq.d"

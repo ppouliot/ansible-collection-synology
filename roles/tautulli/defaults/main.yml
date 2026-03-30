@@ -1,0 +1,7 @@
+---
+# defaults file for tautulli
+# LinuxServer.io Image
+# tautulli_container_image: "lscr.io/linuxserver/tautulli:latest"
+# Tatulli Offical Image
+tautulli_container_image: "ghcr.io/tautulli/tautulli:latest"
+tautulli_exposed_port: 8182

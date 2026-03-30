@@ -1,0 +1,17 @@
+---
+version: '3.3'
+
+services:
+  cloudflared:
+    image:  "{{ cloudflared_container_image }}"
+    command: "tunnel run --token {{ cloudflared_api_token }}"
+    network_mode: host
+    pull: yes
+    privileged: yes
+    volumes:
+      - "{{ container_directory_root }}/cloudflared:/home/nonroot/.cloudflared"
+    environment:
+      - CLOUDFLARED_UID: "{{ user_puid }}"
+      - CLOUDFLARED_GID: "{{ group_pgid }}"
+      - TZ: "{{ default_timezone }}"
+   restart_policy: unless-stopped

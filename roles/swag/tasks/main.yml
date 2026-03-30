@@ -1,0 +1,198 @@
+---
+
+- name: "Swag: Check if Swag container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/swag"
+  register: _swag_config_dir
+  tags:
+    - swag
+    - swag_root
+
+- name: "Swag: Create directories to house swag data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/swag"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _swag_config_dir
+  tags:
+    - swag
+    - swag_root
+  when:
+    - _swag_config_dir is defined
+    - not _swag_config_dir.stat.exists
+
+- name: "Swag: Check if Swag container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: swag
+  register: _swag_state
+  tags:
+    - swag
+
+- name: "Swag: set facts"
+  ansible.builtin.set_fact:
+    swag_port: "{{ swag_port }}"
+    swag_config_dir: "{{ _swag_config_dir }}"
+  tags:
+    - swag
+
+- name: "SWAG: INSTALLATION AND CONFIGURATION BLOCK"
+# when: not _swag_state.exists
+  block: 
+    - name: Create swag container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: swag
+        image: "{{ swag_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+#       network_mode: host
+        network_mode: container:gluetun
+        capabilities:
+          - NET_ADMIN
+        volumes:
+          - "{{ container_directory_root }}/swag:/config"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          URL: "{{ swag_domain_url }}"
+          VALIDATION: "{{ swag_validation }}"
+          SUBDOMAINS: "{{ swag_subdomains }}"
+          DNSPLUGIN: "{{ swag_dnsplugin }}"
+          DOCKER_MODS: "{{ swag_docker_mods }}"
+          DOCKER_HOST: "{{ swag_docker_host }}"
+          EMAIL: "{{ swag_email }}"
+          EMAIL: "{{ swag_email }}"
+          ONLY_SUBDOMAINS: "false"
+          STAGING: "false"
+          PROPAGATION: "60"
+#       ports:
+#         - 5080:80
+#         - 5443:443
+        state: started
+        restart_policy: unless-stopped
+      register: _swag_status
+
+    - name: "Swag: Set swag_is_running fact"
+      ansible.builtin.set_fact:
+        swag_is_running: "{{ _swag_status.container.State.Running }}"
+
+#    - name: "Swag: Wait for Swag HTTP port to come up"
+#      ansible.builtin.uri:
+#        url: "http://{{ ansible_default_ipv4.address }}:5080"
+#        method: GET
+#        status_code: 200
+#      register: _result
+#      until: _result.status == 200
+#      retries: 30  # retry X times
+#      delay: 60  # pause for X sec b/w each call
+
+    - name: "Swag: Stop swag container"
+      community.docker.docker_container:
+        name: swag
+        state: stopped
+
+    - name: "Remove original cloudflare.ini"
+      ansible.builtin.file:
+        path: "{{ container_directory_root }}/swag/dns-conf/cloudflare.ini"
+        state: absent
+
+    - name: "certbot cloudflare config"
+      ansible.builtin.template:
+        src: "cloudflare.ini.j2"
+        dest: "{{ container_directory_root }}/swag/dns-conf/cloudflare.ini"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0600"
+
+    - name: "Modify NGINX Proxy Configs"
+      ansible.builtin.lineinfile:
+#     ansible.builtin.replace:
+        path: "{{ container_directory_root }}/swag/nginx/proxy-confs/{{ item }}.subdomain.conf.sample"
+#       regexp: "^\ \ \ \ \ \ \ \ set $upstream_app {{ item }};"
+        search_string: "{{ item }}"
+        line: "\ \ \ \ \ \ \ \ set $upstream_app 172.17.0.2;"
+#       replace: "\ \ \ \ \ \ \ \ set $upstream_app 172.17.0.2;"
+      loop:
+        - "deluge"
+        - "nzbget"
+        - "sonarr"
+        - "radarr"
+        - "lidarr"
+        - "mylar"
+        - "prowlarr"
+    - name: "Install NGINX Configs"
+      ansible.builtin.copy:
+        src: "{{ container_directory_root }}/swag/nginx/proxy-confs/{{ item }}.subdomain.conf.sample"
+        dest: "{{ container_directory_root }}/swag/nginx/proxy-confs/{{ item }}.subdomain.conf"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0644"
+        remote_src: yes
+      loop:
+        - "deluge"
+        - "nzbget"
+        - "sonarr"
+        - "radarr"
+        - "lidarr"
+        - "mylar"
+        - "prowlarr"
+      
+
+    - name: "SWAG: Start swag container"
+      community.docker.docker_container:
+        name: swag
+        state: started
+
+  tags:
+    - swag
+    - swag_install
+# End Block
+- name: "SWAG: PUll AND RESTART CONTAINER"
+  when: _swag_state.exists
+  block:
+    - name: "Swag: pull and restart container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: swag
+        image: "{{ swag_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+#       network_mode: host
+        network_mode: container:gluetun
+        capabilities:
+          - NET_ADMIN
+        volumes:
+          - "{{ container_directory_root }}/swag:/config"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          URL: "{{ swag_domain_url }}"
+          VALIDATION: "{{ swag_validation }}"
+          SUBDOMAINS: "{{ swag_subdomains }}"
+          DNSPLUGIN: "{{ swag_dnsplugin }}"
+          DOCKER_MODS: "{{ swag_docker_mods }}"
+          DOCKER_HOST: "{{ swag_docker_host }}"
+          EMAIL: "{{ swag_email }}"
+          ONLY_SUBDOMAINS: "false"
+          STAGING: "false"
+          PROPAGATION: "60"
+#       ports:
+#          - 5080:80
+#          - 5443:443
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _swag_status
+  tags:
+    - swag
+    - swag_restart

@@ -1,0 +1,277 @@
+---
+
+- name: "Threadfin: Check if Threadfin container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/threadfin"
+  register: _threadfin_config_dir
+  tags:
+    - threadfin
+    - threadfin_root
+
+- name: "Threadfin: Filesystem Directories"
+  block:
+    - name: Create Threadfin Daemon Directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0755"
+        recurse: true
+      with_items:
+          - "{{ container_directory_root }}/threadfin"
+          - "{{ container_directory_root }}/threadfin/tmp"
+      tags:
+        - threadfin
+        - threadfin_root
+      when:
+        - _threadfin_config_dir is defined
+        - not _threadfin_config_dir.stat.exists
+
+- name: "Threadfin: Check if Threadfin container is running"
+  community.general.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: threadfin
+  register: _threadfin_state
+  tags:
+    - threadfin
+
+- name: "Threadfin: set facts"
+  ansible.builtin.set_fact:
+    threadfin_port: "{{ threadfin_port }}"
+    threadfin_config_dir: "{{ _threadfin_config_dir }}"
+    cacheable: true
+  tags:
+    - threadfin
+
+- name: "Threadfin: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: Create threadfin container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: threadfin
+        image: "{{ threadfin_container_image }}"
+# putting the network behind gluetun
+        networks:
+          - name: synology-docker-network
+        network_mode: container:gluetun
+# ports on docker host
+#       ports:
+#         - "{{ threadfin_port }}:34400"
+        pull: true
+        restart_policy: unless-stopped
+        state: started
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        volumes:
+          - "{{ container_directory_root }}/threadfin:/home/threadfin/conf:rw"
+          - "{{ container_directory_root }}/threadfin/tmp:/tmp/threadfin:rw"
+      register: _threadfin_status
+    - name: "Threadfin: Set threadfin_is_running fact"
+      ansible.builtin.set_fact:
+        threadfin_is_running: "{{ _threadfin_status.container.State.Running }}"
+        cacheable: true
+
+    - name: "wait for threadfin to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ threadfin_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+
+    - name: Stop threadfin
+      community.docker.docker_container:
+        name: threadfin
+        state: stopped
+
+    - name: Find out threadfin default settings
+      ansible.builtin.slurp:
+        src: "{{ container_directory_root }}/threadfin/settings.json"
+      register: threadfin_orig_settings
+
+    - name: Print returned default threadfin settings information
+      ansible.builtin.debug:
+        msg: "{{ threadfin_orig_settings['content'] | b64decode }}"
+
+    - name: copy slurp of default threadfin settings to local file
+      ansible.builtin.copy:
+        content: "{{ threadfin_orig_settings['content'] | b64decode }}"
+        dest: "./threadfin_settings.json"
+      delegate_to: localhost
+
+    - name: Read local threadfin settings file directly into fact
+      ansible.builtin.set_fact:
+        threadfin_settings: "{{ lookup('file', './threadfin_settings.json') }}"
+        cacheable: true
+      delegate_to: localhost
+
+    - name: Update Threadfin_Settings facts
+      ansible.utils.update_fact:
+        updates:
+          - path: threadfin_settings.api
+            value: true
+          - path: threadfin_settings.epgSource
+            value: "XEPG"
+      register: threadfin_settings_updated
+      delegate_to: localhost
+
+    - debug:
+        var: threadfin_settings_updated
+
+
+    - name: Read file directly into fact
+      ansible.builtin.set_fact:
+        threadfin_settings: "{{ threadfin_settings_updated.threadfin_settings | to_json }}"
+        cacheable: true
+
+
+
+    #- name: Enable Threadfin Cache Images
+    #  ansible.utils.update_fact:
+    #    updates:
+    #      - path: threadfin_settings.cache.images
+    #        value: true
+
+    - name: Re-read facts after adding custom fact
+      ansible.builtin.setup:
+        filter: threadfin_settings
+    - debug:
+        var: threadfin_settings
+
+
+    - name: Copy Settings to synology
+      ansible.builtin.copy:
+        content: "{{ threadfin_settings }}"
+        dest: "{{ container_directory_root }}/threadfin/settings.json"
+        force: true
+
+#    - name: Add threadfin settings.json
+#      template:
+#        src: settings.json.j2
+#        dest: "{{ container_directory_root }}/threadfin/settings.json"
+#        owner: "{{ user_puid }}"
+#        group: "{{ group_pgid }}"
+#        mode: 0770
+
+    - name: "Threadfin: Start Threadfin container"
+      community.docker.docker_container:
+        name: threadfin
+        state: started
+
+    - name: "wait for threadfin to come up and test with new password"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ threadfin_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+  when: not _threadfin_state.exists
+  tags:
+    - threadfin
+    - threadfin_install
+
+  # End Block
+
+- name: "Threadfin: restart and set facts"
+  block:
+    - name: Ingest the threadfin settings
+      ansible.builtin.slurp:
+        src: "{{ container_directory_root }}/threadfin/settings.json"
+      register: threadfin_running_settings
+        
+    - name: Print returned information for threadfin settings
+      ansible.builtin.debug:
+        msg: "{{ threadfin_running_settings['content'] | b64decode }}"
+
+    - name: copy slurp of threadfin settings to local file
+      ansible.builtin.copy:
+        content: "{{ threadfin_running_settings['content'] | b64decode }}"
+        dest: "./threadfin_settings.json"
+      delegate_to: localhost
+
+    - name: Read local threadfin settings file directly into fact
+      ansible.builtin.set_fact:
+        threadfin_settings: "{{ lookup('file', './threadfin_settings.json') }}"
+        cacheable: true
+      delegate_to: localhost
+
+    - name: restart threadfin container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: threadfin
+        image: "{{ threadfin_container_image }}"
+# putting the network behind gluetun
+        networks:
+          - name: synology-docker-network
+        network_mode: container:gluetun
+#       ports:
+#         - "{{ threadfin_port }}:34400"
+        pull: true
+        restart: true
+        restart_policy: unless-stopped
+        state: started
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        volumes:
+          - "{{ container_directory_root }}/threadfin:/home/threadfin/conf:rw"
+          - "{{ container_directory_root }}/threadfin/tmp:/tmp/threadfin:rw"
+      register: _threadfin_status
+    - name: "Threadfin: Set threadfin_is_running fact"
+      ansible.builtin.set_fact:
+        threadfin_is_running: "{{ _threadfin_status.container.State.Running }}"
+        cacheable: yes
+
+    - name: "wait for threadfin to come up and test with new password"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ threadfin_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+  when: _threadfin_state.exists
+  tags:
+    - threadfin
+  # end block
+
+- name: "Threadfin: Set Facts"
+  ansible.builtin.set_fact:
+    threadfin_config_dir: "{{ _threadfin_config_dir }}"
+    threadfin_port: "{{ threadfin_port }}"
+#   threadfin_api_key: "{{ threadfin_xml.matches[0].ApiKey }}"
+#   threadfin_settings: "{{ threadfin_settings }}"
+    threadfin_settings: "{{ lookup('file', './threadfin_settings.json') }}"
+    cacheable: true
+  tags: 
+    - threadfin
+    - threadfin_facts
+
+
+- name: "Threadfin: print facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "threadfin_port: {{ threadfin_port }}"
+    - "threadfin_config_dir: {{ threadfin_config_dir }}"
+#   - "threadfin_api_key: {{ threadfin_api_key }}"
+    - "threadfin_settings: {{ threadfin_settings }}"
+    - "threadfin_is_running: {{ threadfin_is_running }}"
+  tags:
+    - threadfin
+    - threadfin_facts
+
+- name: Re-read facts after adding custom fact
+  ansible.builtin.setup:
+    filter: ansible_local

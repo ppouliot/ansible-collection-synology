@@ -1,0 +1,60 @@
+---
+- name: Check Docker Swarm status
+  ansible.builtin.command: /usr/local/bin/docker info --format '{{ '{{' }}.Swarm.LocalNodeState{{ '}}' }}'
+  register: docker_swarm_status_cmd
+  changed_when: false
+  # Optional: Handle potential errors if docker is not installed or the user lacks permissions
+  # ignore_errors: true 
+
+- name: Set a fact for Swarm status
+  ansible.builtin.set_fact:
+    is_swarm_node: "{{ docker_swarm_status_cmd.stdout == 'active' }}"
+
+- name: Debug the swarm status (optional)
+  ansible.builtin.debug:
+    var: is_swarm_node
+
+- name: "Netbox: Get upstream netbox-docker repo"
+  ansible.builtin.git:
+    repo: https://github.com/netbox-community/netbox-docker.git
+    dest: "/volume1/docker/netbox"
+    clone: yes
+    update: yes
+    force: yes
+  tags: 
+    - install
+
+
+- name: "Netbox: Install docker-compose.override.yml into /volume1/docker/netbox"
+  ansible.builtin.template:
+    dest: "/volume1/docker/netbox/docker-compose.override.yml"
+    src: docker-compose.override.yml.j2
+  tags: 
+    - configure
+
+- name: "Netbox: Start netbox via docker-compose"
+  community.docker.docker_compose_v2:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    project_src: "/volume1/docker/netbox"
+    state: present
+    build: no
+    debug: yes
+    pull: yes
+  register: netbox_output
+  tags:
+    - run
+  when: not is_swarm_node
+
+- name: "Deploy stacks"
+  when: is_swarm_node
+  community.docker.docker_stack:
+    docker_cli: "{{ synology_docker_cli }}"
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    state: present
+    name: "netbox"
+    compose: "{{ container_directory_root }}/netbox/docker-compose.yml"
+
+
+
+- ansible.builtin.debug:
+    var: netbox_output

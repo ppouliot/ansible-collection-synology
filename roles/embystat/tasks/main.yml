@@ -1,0 +1,32 @@
+---
+# tasks file for embystat
+---
+
+- name: "Create directories to house embystat config and transcode data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/embystat"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+    
+- block:
+    - name: Run embystat container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: embystat
+        image:  "{{ embystat_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: yes
+        ports:
+          - 6555:6555
+        volumes:
+          - "{{ container_directory_root }}/embystat:/config"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+        restart_policy: unless-stopped
+  # End Block

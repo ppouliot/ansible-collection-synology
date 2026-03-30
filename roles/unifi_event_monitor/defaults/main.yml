@@ -1,0 +1,9 @@
+---
+# defaults file for unifi_event_monitor
+unifi_event_monitor_container_image: "tborychowski/unifi-event-monitor:latest"
+slack_bot_token: your-token-needstogo-here123456789
+slack_channel: gitops
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  author: ppouliot
+  description: Bootstrap a Synology NAS via DSM 7 API — users, packages, SSH, file services
+  company: Interoperable Systems
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Synology DSM
+      versions:
+        - "7.0"
+        - "7.1"
+        - "7.2"
+        - "7.3"
+  galaxy_tags:
+    - synology
+    - dsm
+    - nas
+    - bootstrap
+
+dependencies: []

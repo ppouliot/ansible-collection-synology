@@ -1,0 +1,216 @@
+---
+
+- name: "jackett: check for jackett dir"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/jackett"
+  register: _jackett_config_dir
+  tags:
+    - jackett
+- name: "jackett: check for jackett server config"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/jackett/Jackett/ServerConfig.json"
+  register: _jackett_server_config
+  tags:
+    - jackett
+- name: "jackett: check for jackett iptorrents indexer"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/jackett/Jackett/Indexers/iptorrents.json"
+  register: _jackett_iptorrents_indexer
+  tags:
+    - jackett
+
+- name: "Create directories to house jackett data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/jackett"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  when:
+    - _jackett_config_dir is defined
+    - not _jackett_config_dir.stat.exists
+  tags:
+    - jackett
+
+- name: "Create additional jackett configuration directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  with_items:
+    - "{{ container_directory_root }}/jackett/Jackett"
+    - "{{ container_directory_root }}/jackett/Jackett/DataProtection"
+    - "{{ container_directory_root }}/jackett/Jackett/Indexers"
+  tags:
+    - jackett
+- name: Check if jackett is running
+  community.general.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: jackett
+  register: _jackett_state
+  tags:
+    - jackett
+- name: "jackett: set facts"
+  ansible.builtin.set_fact:
+    jackett_config_dir: "{{ _jackett_config_dir }}"
+    jackett_state: "{{ _jackett_state }}"
+    jacket_iptorrents_indexer: "{{ _jackett_iptorrents_indexer }} "
+  tags:
+    - jackett
+- block:
+    - name: Create jackett container
+      community.general.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: jackett
+        image: "{{ jackett_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+#       network_mode: host
+#       ports:
+#         - "9117:9117"
+        volumes:
+          - "{{ container_directory_root }}/jackett:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          JACKETT_KEY: "{{ jackett_encryption_key }}"
+        state: started
+        restart_policy: unless-stopped
+      register: _jackett_status
+    - name: Set jackett_is_running fact
+      ansible.builtin.set_fact:
+        jackett_is_running: "{{ _jackett_status.container.State.Running }}"
+    - name: "wait for jackett to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:9117"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: Stop jackett
+      community.general.docker_container:
+        name: jackett
+        state: stopped
+      register: _jackett_status
+#    - name: Add jackett/Jackett/ServerConfig.json
+#      ansible.builtin.template:
+#        src: ServerConfig.json.j2
+#        dest: "{{ container_directory_root }}/jackett/Jackett/ServerConfig.json"
+#        owner: "{{ user_puid }}"
+#        group: "{{ group_pgid }}"
+#        mode: 0775
+#      register: _jackett_config
+    - name: Add jackett/Jackett/Indexers/iptorrents.json
+      ansible.builtin.template:
+        src: iptorrents.json.j2
+        dest: "{{ container_directory_root }}/jackett/Jackett/Indexers/iptorrents.json"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: 0775
+      register: _jackett_indexer_config
+    - name: Retart jackett container
+      community.general.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: jackett
+        image: "{{ jackett_container_image }}"
+        pull: true
+        network_mode: container:gluetun
+#       network_mode: host
+#       ports:
+#         - "9117:9117"
+        volumes:
+          - "{{ container_directory_root }}/jackett:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          JACKETT_KEY: "{{ jackett_encryption_key }}"
+        state: started
+#       restart: true
+        restart_policy: unless-stopped
+      register: _jackett_status
+  tags:
+    - jackett
+  when: not _jackett_state.exists
+  # End Block
+- block:
+    - name: restart jackett container
+      community.general.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: jackett
+        image: "{{ jackett_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+#       network_mode: host
+#       ports:
+#         - "9117:9117"
+        volumes:
+          - "{{ container_directory_root }}/jackett:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          JACKETT_KEY: "{{ jackett_encryption_key }}"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _jackett_status
+    - name: jackett is running
+      ansible.builtin.set_fact:
+        jackett_is_running: "{{ _jackett_status.container.State.Running }}"
+  # End Block
+  tags:
+    - jackett
+  when: _jackett_state.exists
+- name: "print jackett facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "jackett_config_dir: {{ jackett_config_dir }}"
+    - "jackett_state: {{ jackett_state }}"
+    - "jackett_is_running: {{ jackett_is_running }}"
+  tags:
+    - jackett
+- block:
+    - name: "slurp in the jackett config"
+      ansible.builtin.slurp:
+        src: /volume1/docker/jackett/Jackett/ServerConfig.json
+      register: jackett_config_json
+    - name: "jackett config b64decode and then register"
+      ansible.builtin.debug:
+        msg: "{{ jackett_config_json['content'] | b64decode }}"
+      register: jackett_config
+    - name: "Print jacket_config"
+      ansible.builtin.debug:
+        var: jackett_config
+    - name: "Print jacket api key"
+      ansible.builtin.debug:
+        msg: "{{ jackett_config.msg.APIKey }}"
+    - name: "set jacket api key fact"
+      ansible.builtin.set_fact:
+        jackett_api_key: "{{ jackett_config.msg.APIKey }}"
+        cacheable: true
+  tags:
+    - jackett
+    - jackett_facts
+
+- name: Re-read facts after adding custom fact
+  ansible.builtin.setup:
+    filter: ansible_local

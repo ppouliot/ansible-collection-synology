@@ -1,0 +1,111 @@
+---
+
+- name: "UDI Polyglot-v2: container directory structure"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+  with_items:
+    - "{{ container_directory_root }}/UDI"
+    - "{{ container_directory_root }}/UDI/polyglot"
+    - "{{ container_directory_root }}/UDI/polyglot-pkgs"
+
+- name: "UDI Polyglot-v2: Get Universal Devices polyglot-v2 repo"
+  ansible.builtin.git:
+    repo: "{{ polyglot_repo }}"
+    dest: "{{ container_directory_root }}/UDI/polyglot-v2"
+    clone: yes
+    update: yes
+    force: yes
+
+- name: "UDI Polyglot-v2: Install .env into {{ container_directory_root }}/UDI/polyglot/.env"
+  ansible.builtin.template:
+    dest: "{{ container_directory_root }}/UDI/polyglot/.env"
+    src: polyglot_v2/env.j2
+
+- name: "UDI Polyglot-v2: Build the latest polyglot container"
+  community.docker.docker_image:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: polyglotv2
+    build:
+      path: "{{ container_directory_root }}/UDI/polyglot-v2/docker"
+    source: build
+    tag: latest
+
+- name: "UDI Polyglot-v2: Create docker volume for polyglot-pkgs"
+  community.docker.docker_volume:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: polyglot-pkgs
+
+- name: "UDI Polyglot-v2: create docker network for polyglotv2 and mongodb"
+  community.docker.docker_network:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: polyglot_default
+    state: present
+
+- name: "UDI Polyglot-v2: Check if mongodb is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: mongo
+  register: mongodb_state
+
+- name: "UDI Polyglot-v2: MongoDB Backend"
+  block:
+    - name: "MongoDB: Run mongodb backend for polyglotv2"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: mongo
+        image:  "{{ mongo_image }}"
+        networks:
+          - name: polyglot_default
+        pull: yes
+        purge_networks: yes
+        exposed_ports:
+          - 27017
+        restart_policy: always
+        state: started
+      register: mongodb_register
+    - name: "MongoDB: Wait for MongoDB to accept connections"
+      ansible.builtin.wait_for:
+        host: "{{ mongodb_register['ansible_facts']\
+          ['docker_container']\
+          ['NetworkSettings']\
+          ['Networks']\
+          ['polyglot_default']\
+          ['IPAddress'] }}"
+        port: 27017
+        state: started
+        connect_timeout: 1
+        timeout: 30
+      register: mongodb_running
+      until: mongodb_running is success
+      retries: 10
+  when: not mongodb_state.exists
+
+- name: "UDI Polyglot-v2: polyglotv2"
+  block:
+    - name: "UDI Polyglot-v2: Run UDI polyglotv2 container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: polyglotv2
+        image:  polyglotv2
+        networks:
+          - name: polyglot_default
+            links: mongo
+        networks_cli_compatible: yes
+        purge_networks: yes
+        tty: yes
+        volumes:
+          - "{{ container_directory_root }}/UDI/polyglot:/root/.polyglot"
+          - polyglot-pkgs:/usr/lib/python3.8/site-packages
+        env:
+          PYTHON: "/usr/bin/python"
+          PYTHON3: "/usr/bin/python3"
+          NODE_ENV: "development"
+          USEDOCKER: "true"
+        ports:
+          - "{{ polyglot_port }}:{{ polyglot_port }}"
+        restart_policy: always
+        state: started
+  when: mongodb_state.exists

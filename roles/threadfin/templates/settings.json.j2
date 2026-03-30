@@ -1,0 +1,94 @@
+{
+  "api": true,
+  "authentication.api": false,
+  "authentication.m3u": false,
+  "authentication.pms": false,
+  "authentication.web": false,
+  "authentication.xml": false,
+  "backup.keep": 10,
+  "backup.path": "/home/threadfin/conf/backup/",
+  "git.branch": "MAIN",
+  "buffer": "-",
+  "buffer.size.kb": 1024,
+  "buffer.timeout": 500,
+  "cache.images": true,
+  "epgSource": "XEPG",
+  "ffmpeg.options": "-hide_banner -loglevel error -i [URL] -c copy -f mpegts pipe:1",
+  "ffmpeg.path": "/usr/bin/ffmpeg",
+  "vlc.options": "-I dummy [URL] --sout #std{mux=ts,access=file,dst=-}",
+  "vlc.path": "/usr/bin/cvlc",
+  "files": {
+    "hdhr": {},
+    "m3u": {
+      "MFU15MCYGRDZCZ216SO7": {
+        "compatibility": {
+          "group.title": 100,
+          "stream.id": 31,
+          "streams": 51,
+          "tvg.id": 29
+        },
+        "counter.download": 7,
+        "counter.error": 0,
+        "description": "iptorrents.com/iptv",
+        "file.source": "https://tv123.me/iptv/1597560/ecHKLVjEel/Default",
+        "file.threadfin": "MFU15MCYGRDZCZ216SO7.m3u",
+        "id.provider": "MFU15MCYGRDZCZ216SO7",
+        "last.update": "2024-06-13 09:21:24",
+        "name": "IPT-IPTV",
+        "provider.availability": 100,
+        "tuner": 1,
+        "type": "m3u"
+      }
+    },
+    "xmltv": {
+      "XARUZH5BLEW9CRA11GOW": {
+        "compatibility": {
+          "xmltv.channels": 4503,
+          "xmltv.programs": 233152
+        },
+        "counter.download": 7,
+        "counter.error": 0,
+        "description": "iptorrents.com/iptv",
+        "file.source": "https://cdn.iptv.memorial/EPG.xml",
+        "file.threadfin": "XARUZH5BLEW9CRA11GOW.xml",
+        "id.provider": "XARUZH5BLEW9CRA11GOW",
+        "last.update": "2024-06-13 09:21:32",
+        "name": "IPT-EPG",
+        "provider.availability": 100,
+        "type": "xmltv"
+      }
+    }
+  },
+  "files.update": true,
+  "filter": {},
+  "language": "en",
+  "log.entries.ram": 500,
+  "m3u8.adaptive.bandwidth.mbps": 10,
+  "mapping.first.channel": 1000,
+  "port": "34400",
+  "ssdp": true,
+  "temp.path": "/tmp/threadfin/",
+  "tuner": 2,
+  "update": [
+    "0000"
+  ],
+  "user.agent": "Threadfin",
+  "uuid": "2024-06-0BF3-EP6T8B",
+  "udpxy": "",
+  "version": "0.5.0",
+  "xepg.replace.missing.images": true,
+  "xepg.replace.channel.title": false,
+  "ThreadfinAutoUpdate": true,
+  "storeBufferInRAM": true,
+  "forceHttps": false,
+  "httpsPort": 443,
+  "bindIpAddress": "",
+  "httpsThreadfinDomain": "",
+  "httpThreadfinDomain": "",
+  "enableNonAscii": false,
+  "epgCategories": "Kids:kids|News:news|Movie:movie|Series:series|Sports:sports",
+  "epgCategoriesColors": "kids:mediumpurple|news:tomato|movie:royalblue|series:gold|sports:yellowgreen",
+  "dummy": true,
+  "dummyChannel": "",
+  "ignoreFilters": false
+}

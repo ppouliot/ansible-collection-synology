@@ -1,0 +1,21 @@
+---
+
+- name: Create exportarr_readarr container
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: exportarr_readarr
+    image: "{{ exportarr_container_image }}"
+    pull: yes
+    ports:
+      - "{{ readarr_exportarr_port }}:{{ readarr_exportarr_port }}"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK: "022"
+      PORT: "{{ readarr_exportarr_port }}"
+      URL: "http://{{ ansible_default_ipv4.address }}:{{ readarr_port }}"
+      APIKEY: "{{ readarr_api_key }}"
+    command: ["readarr"]
+    state: started
+    restart_policy: unless-stopped

@@ -1,0 +1,22 @@
+---
+# Bazarr
+bazarr_container_image: "lscr.io/linuxserver/bazarr:latest"
+bazarr_port: "6767"
+
+# These need to be detected before configuration with template
+bazzarr_flask_secret_key: 2c8361a22063d39a59f688b602b2a37f
+bazarr_api_key: f4e69f0235cc0765e4b4b810c3a017fd
+
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+
+# opensubtitles.com/opensubtitles.org
+opensubtitles_username: "bwayne"
+opensubtitles_password: "P@ssword"
+opensubtitles_vip_member: true
+
+# DeathByCaptcha
+deathbycaptcha_username: "bwayne"
+deathbycaptcha_password: "P@ssword"

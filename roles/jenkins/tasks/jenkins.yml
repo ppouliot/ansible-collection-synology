@@ -1,0 +1,33 @@
+---
+- name: Jenkins Directory Structure On Synology
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  with_items:
+    - "{{ container_directory_root }}/jenkins"
+    - "{{ container_directory_root }}/jenkins/controller"
+- name: Add permissions for docker user to the docker socket
+  file:
+    path: /var/run/docker.sock
+    state: file
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+- name: Install Jenkins using docker blunt force
+  docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: jenkins-controller
+    image: "{{ jenkins_container_image }}"
+    networks:
+      - name: synology-docker-network
+    restart_policy: always
+    pull: true
+    ports:
+      - 9090:8080
+      - 50000:50000
+    volumes:
+      - "{{ container_directory_root }}/jenkins/controller:/var/jenkins_home"
+      - /var/run/docker.sock:/var/run/docker.sock

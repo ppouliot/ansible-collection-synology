@@ -1,0 +1,57 @@
+---
+#user_puid: "1000"
+user_puid: "{{ ansible_facts.users[ansible_user_id].uid }}"
+#group_pgid: "100"
+group_pgid: "{{ ansible_facts.users[ansible_user_id].group }}"
+default_timezone: "America/New_York"
+
+# Python interpreter — set to system default until python3.12 is installed
+# After python3.12 installs, ansible_python_interpreter is updated dynamically in main.yml
+synology_python_interpreter_path: "/var/packages/Python3.14/target/bin/python3.14"
+
+# Options for Synology tasks
+
+#synology_default_user: administrator
+sshkey_url: https://github.com/ppouliot.keys
+
+# roles/synology/tasks/packages.yml
+#synology_manage_packages: true
+synology_required_packages: []
+synology_package_list: []
+#synology_required_packages:
+#  - "ReplicationService"
+#  - "Virtualization"
+#  - "CMS"
+
+# roles/synology/tasks/git.yml
+#synology_git_enable: true
+
+# roles/synology/tasks/pip.yml
+#synology_pip_upgrade: true
+
+# roles/synology/tasks/docker.yml
+# required
+synology_docker_enable: false
+synology_upptime_enable: false
+
+# roles/synology/tasks/cloudflare_ddns.yml
+synology_cloudflare_ddns_enable: false
+
+# Package management
+synology_upgrade_packages: false
+
+synology_refresh_packages: false
+
+# Container Manager / Docker registry
+synology_ghcr_user: "ppouliot"
+synology_ghcr_pat: ""  # Set in host_vars vault
+
+# SSH keys
+synology_dsm_username: "{{ ansible_user }}"
+
+# ── Synology binary paths ─────────────────────────────────────────────────────
+synology_bin: /usr/syno/bin
+synology_sbin: /usr/syno/sbin
+synology_synopkg: /usr/syno/bin/synopkg
+synology_synouser: /usr/syno/sbin/synouser
+synology_synosystemctl: /usr/syno/bin/synosystemctl

@@ -1,0 +1,25 @@
+description "Docker daemon"
+author "System Integration Team"
+
+limit nofile 524288 1048576
+
+console log
+
+respawn
+respawn limit 5 10
+
+kill timeout 60
+
+# "{{ ansible_managed }}"
+exec /var/packages/Docker/target/usr/bin/dockerd -H unix:///var/run/docker.sock -H tcp://0.0.0.0:4243 --config-file /var/packages/Docker/etc/dockerd.json
+
+post-start script
+	DOCKER_SOCKET=/var/run/docker.sock
+
+	while ! [ -e "$DOCKER_SOCKET" ]; do
+		initctl status $UPSTART_JOB | grep -qE "(stop|respawn)/" && exit 1
+		echo "Waiting for $DOCKER_SOCKET" || true
+		sleep 0.1
+	done
+	echo "$DOCKER_SOCKET is up" || true
+end script

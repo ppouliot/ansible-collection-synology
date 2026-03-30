@@ -1,0 +1,16 @@
+# https://github.com/mrikirill/SynologyDDNSCloudflareMultidomain
+- name: "get SynologyDDNSCloudflareMultidomain script"
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/mrikirill/SynologyDDNSCloudflareMultidomain/refs/heads/master/cloudflare.php"
+    dest: "{{ synology_bin }}/ddns/cloudflare.php"
+    mode: '0755'
+
+- name: "add to ddns config"
+  ansible.builtin.blockinfile:
+    path: /etc.defaults/ddns_provider.conf
+    insertafter: EOF
+    block: |
+     [Cloudflare]
+           modulepath={{ synology_bin }}/ddns/cloudflare.php
+           queryurl=https://www.cloudflare.com/
+

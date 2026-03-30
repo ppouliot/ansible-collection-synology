@@ -1,0 +1,157 @@
+---
+
+- name: "headphones: check for downloads directory"
+  stat:
+    path: /volume1/docker/downloads
+  register: _headphones_download_dir
+  tags:
+    - headphones
+- name: "headphones: check for headphones home dir"
+  stat:
+    path: "{{ container_directory_root }}/headphones"
+  register: _headphones_config_dir
+  tags:
+    - headphones
+- name: "Create directories to house sonarr data"
+  file:
+    path: "{{ container_directory_root }}/headphones"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _headphones_config_dir
+  when:
+    - _headphones_config_dir is defined
+    - not _headphones_config_dir.stat.exists
+- name: Check if headphones is running
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: headphones
+  register: _headphones_state
+  tags:
+    - headphones
+- name: "headphones: set facts"
+  set_fact:
+    headphones_download_dir: "{{ _headphones_download_dir }}"
+    headphones_config_dir: "{{ _headphones_config_dir }}"
+    headphones_state: "{{ _headphones_state }}"
+- block:
+    - name: Create headphones container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: headphones
+        image: "{{ headphones_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        state: started
+    #   network_mode: host
+    #   ports:
+    #     - 8181:8181
+    # Change port due to port conflict
+    #     - 8182:8181
+        volumes:
+          - "{{ container_directory_root }}/headphones:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/music:/music"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _headphones_status
+    - name: Set headphones_is_running fact
+      set_fact:
+        headphones_is_running: "{{ _headphones_status.container.State.Running }}"
+    - name: "wait for headphones to come up"
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:8181"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: Stop headphones
+      community.docker.docker_container:
+        name: headphones
+        state: stopped
+      register: _headphones_status
+    - name: Add headphones/config.ini
+      template:
+        src: config.ini.j2
+        dest: "{{ container_directory_root }}/headphones/config.ini"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: 0775
+      register: _headphones_config
+    - name: Create headphones container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: headphones
+        image: "{{ headphones_container_image }}"
+        pull: true
+        network_mode: container:gluetun
+        state: started
+    #   network_mode: host
+    #   ports:
+    #     - 8181:8181
+        volumes:
+          - "{{ container_directory_root }}/headphones:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/music:/music"
+        env:
+          PUID: "{{ user_puid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _headphones_status
+  tags:
+    - headphones
+  when: not _headphones_state.exists
+- block:
+    - name: Restart headphones container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: headphones
+        image: "{{ headphones_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        state: started
+        restart: true
+    #   network_mode: host
+    #   ports:
+    #     - 8181:8181
+        volumes:
+          - "{{ container_directory_root }}/headphones:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/music:/music"
+        env:
+          PUID: "{{ user_puid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _headphones_status
+    - name: headphones is running
+      set_fact:
+        headphones_is_running: "{{ _headphones_status.container.State.Running }}"
+  # End Block
+  tags:
+    - headphones
+  when: _headphones_state.exists
+
+- name: "headphones: print facts"
+  debug:
+    msg: "{{ item }}"
+  loop:
+    - "headphones_config_dir: {{ headphones_config_dir }}"
+    - "headphones_download_dir: {{ headphones_download_dir }}"
+    - "headphones_state: {{ headphones_state }}"
+    - "headphones_is_running: {{ headphones_is_running }}"
+  tags:
+    - headphones

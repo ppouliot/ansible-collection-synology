@@ -1,0 +1,10 @@
+---
+# defaults file for unifi_api_browser
+unifi_api_browser_container_image: "scyto/unifibrowser:latest"
+unifi_api_browser_port: 8004
+unifi_api_browser_user: admin
+unifi_api_browser_password: CHANGEME
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

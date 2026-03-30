@@ -1,0 +1,51 @@
+---
+- name: "Pi-Hole: Create directory structure for containers"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "root"
+    group: "root"
+    mode: 0775
+  with_items:
+    - "{{ container_directory_root }}/unifi-poller"
+    - "{{ container_directory_root }}/unifi-poller/grafana"
+    - "{{ container_directory_root }}/unifi-poller/influxdb"
+- name: "Unifi-Poller: Get unifi-poller repo"  # noqa git-latest
+  ansible.builtin.git:
+    repo: "{{ unifi_poller_github_repo }}"
+    dest: "{{ container_directory_root }}/unifi-poller/src"
+    clone: true
+    update: true
+    force: true
+
+- name: "Unifi-Poller: Install docker-compose.override.yml into {{ container_directory_root }}/unifi-poller/init/docker/docker-compose.override.yml to create networks"  # noqa yaml
+  ansible.builtin.template:
+#   dest: "{{ container_directory_root }}/unifi-poller/init/docker/docker-compose.override.yml"
+#   dest: "{{ container_directory_root }}/unifi-poller/init/synology-docker-compose/docker-compose.override.yml"
+    dest: "{{ container_directory_root }}/unifi-poller/.env"
+    src: env.j2
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+
+- name: "Copy docker-compose.yml to unifi-poller root directory"
+  ansible.builtin.copy:
+    src: "{{ container_directory_root }}/unifi-poller/src/init/synology-docker-compose/docker-compose.yml"
+    dest: "{{ container_directory_root }}/unifi-poller/docker-compose.yml"
+    remote_src: yes
+
+- name: "Unifi-Poller: launch unifi-poller via docker-compose"
+  community.docker.docker_compose:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+#   definition: "{{ container_directory_root }}/unifi-poller/init/docker/docker-compose.yml"
+#   project_src: "{{ container_directory_root }}/unifi-poller/init/docker"
+#   project_src: "{{ container_directory_root }}/unifi-poller/init/synology-docker-compose"
+    project_src: "{{ container_directory_root }}/unifi-poller"
+    state: present
+    build: false
+    debug: true
+    pull: true
+  register: unifi_poller_output
+- name: print unifi_poller_output
+  debug:
+    var: unifi_poller_output

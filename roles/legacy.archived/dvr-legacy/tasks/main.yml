@@ -1,0 +1,15 @@
+---
+  
+- name: OTA/Cable DVR
+  block: 
+
+    - name: HDHomeRun recording engine
+      include_tasks: hdhomerun.yml
+      when:
+        - hdhomerun_enable == true
+
+    - name: TVHeadend
+      include_tasks: tvheadend.yml
+      when:
+        - tvheadend_enable == true
+

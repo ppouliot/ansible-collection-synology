@@ -1,0 +1,21 @@
+---
+
+- name: Create exportarr_bazarr container
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: exportarr_bazarr
+    image: "{{ exportarr_container_image }}"
+    pull: yes
+    ports:
+      - "{{ bazarr_exportarr_port }}":"{{ bazarr_exportarr_port }}"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK: "022"
+      PORT: "{{ bazarr_exportarr_port }}"
+      URL: "http://{{ ansible_default_ipv4.address }}:{{ bazarr_port }}"
+      APIKEY: "{{ bazarr_api_key }}"
+    command: ["bazarr"]
+    state: started
+    restart_policy: unless-stopped

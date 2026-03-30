@@ -1,0 +1,29 @@
+---
+galaxy_info:
+  role_name: synology_dsm
+  author: Peter Pouliot
+  description: Configure a Synology NAS running DSM 7.x via the DSM API
+  company: Interoperable Systems
+  license: Apache-2.0
+  min_ansible_version: "2.12"
+  platforms:
+    - name: EL
+      versions:
+        - all
+    - name: Fedora
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+    - name: Debian
+      versions:
+        - all
+  galaxy_tags:
+    - synology
+    - dsm
+    - nas
+    - storage
+    - network
+
+dependencies: []

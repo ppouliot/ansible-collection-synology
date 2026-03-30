@@ -1,0 +1,24 @@
+---
+- name: Get default Python version
+  ansible.builtin.command: /bin/python --version
+  changed_when: false
+  register: _syno_python_version
+  failed_when: _syno_python_version.rc != 0
+
+- name: Set default Python version fact
+  ansible.builtin.set_fact:
+    syno_default_python_version: "{{ _syno_python_version.stdout | default(_syno_python_version.stderr) | trim }}"
+
+- name: Check if Python 3.9 is installed
+  ansible.builtin.command: "{{ synology_synopkg }} is_onoff Python3.9"
+  changed_when: false
+  register: _syno_python39_status
+  failed_when: _syno_python39_status.rc != 0 and _syno_python39_status.rc != 1
+
+- name: Set Python 3.9 status fact
+  ansible.builtin.set_fact:
+    syno_python39_status: "{{ _syno_python39_status.stdout | trim }}"
+
+- name: Display Python facts summary
+  ansible.builtin.debug:
+    msg: "Default Python: "{{ syno_default_python_version }} | Python3.9: {{ syno_python39_status }}""

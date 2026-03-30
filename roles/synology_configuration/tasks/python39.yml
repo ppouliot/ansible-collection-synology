@@ -1,0 +1,19 @@
+---
+- name: Check if Python 3.9 is installed
+  ansible.builtin.command:
+    cmd: "{{ synology_synopkg }} is_onoff Python3.9"
+  register: _synology_python39_status
+  changed_when: false
+  failed_when: _synology_python39_status.rc != 0 and _synology_python39_status.rc != 1
+
+- name: Display Python 3.9 status
+  ansible.builtin.debug:
+    var: _synology_python39_status.stdout
+
+- name: Install Python 3.9 from Synology packages
+  ansible.builtin.command:
+    cmd: "{{ synology_synopkg }} install_from_server Python3.9"
+  register: _install_python39
+  changed_when: _install_python39.rc == 0
+  failed_when: _install_python39.rc != 0 and 'already installed' not in _install_python39.stdout
+  when: "'package Python3.9 is turned on' not in _synology_python39_status.stdout"

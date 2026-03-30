@@ -1,0 +1,31 @@
+--- 
+- name: "Atlantis: Valkey Cache for Atlantis Locking"
+  block:
+    - name: Valkey Daemon Directories
+      file:
+        path: "{{ container_directory_root }}/atlantis/valkey"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0755"
+        recurse: true
+
+    - name: "valkey"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: valkey
+        image: "{{valkey_container_image }}"
+        networks:
+          - name: synology-docker-network
+        network_mode: container:atlantis
+        pull: true
+        retries: 5
+        delay: 30
+        state: started
+        command: "valkey-server --save 20 1 --loglevel warning --requirepass {{ valkey_password }}"
+        restart_policy: unless-stopped
+        volumes:
+          - "{{ container_directory_root }}/atlantis/valkey:/data"
+#       ports:
+#         - "{{ valkey_port }}:6379"
+        env:

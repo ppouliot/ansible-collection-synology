@@ -1,0 +1,39 @@
+---
+- name: Create Unifi API Browser Directories
+  file:
+    path: "{{ container_directory_root }}/unifi-api-browser"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+- name: Hash
+  debug:
+    msg: "{{ unifi_api_browser_password | hash('sha512') }}"
+- name: PasswordHash
+  debug:
+    msg: "{{ unifi_api_browser_password | password_hash('sha512') }}"
+- name: Run unifibrowser container
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: unifibrowser
+    image: "{{ unifi_api_browser_container_image }}"
+    pull: true
+    retries: 5
+    delay: 30
+    network_mode: bridge
+    env:
+      TZ: "{{ default_timezone }}"
+      USER: "{{ unifi_cloudkey_user }}"
+      PASSWORD: "{{ unifi_cloudkey_password }}"
+      UNIFIURL: "{{ unifi_cloudkey_url | urlsplit('scheme') }}://{{ unifi_cloudkey_url | urlsplit('hostname') }}"
+      PORT: "{{ unifi_cloudkey_url | urlsplit('port') }}"
+      DISPLAYNAME: "{{ unifi_cloudkey_site }}"
+      APIBROWSERUSER: "{{ unifi_api_browser_user }}"
+      APIBROWSERPASS: "{{ unifi_api_browser_password | hash('sha512') }}"
+    ports:
+      - "{{ unifi_api_browser_port }}:8000"
+    restart_policy: unless-stopped
+#   volumes:
+#     - "{{ container_directory_root }}/unifi-api-browser/config.php:UniFi-API-browser/config/config.php"
+#     - "{{ container_directory_root }}/unifi-api-browser/users.php:UniFi-API-browser/config/users.php"

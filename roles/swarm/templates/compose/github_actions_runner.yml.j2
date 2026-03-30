@@ -1,0 +1,38 @@
+            name: github-runner
+            image: "{{ runner_container_image }}"
+            networks:
+              - name: synology-docker-network
+            pull: true
+            network_mode: bridge
+            volumes:
+              - /var/run/docker.sock:/var/run/docker.sock
+              - "{{ container_directory_root }}/github-runner:/tmp/github-runner"
+            env:
+              PUID: "{{ user_puid }}"
+              PGID: "{{ group_pgid }}"
+              TZ: "{{ default_timezone }}"
+              DEBUG_ONLY: "false"
+              DEBUG_OUTPUT: "true"
+              RUN_AS_ROOT: "{{ runner_allow_runasroot }}"
+              RUNNER_NAME: "{{ runner_name }}"
+              RUNNER_NAME_PREFIX: "dsm"
+#             RANDOM_RUNNER_SUFFIX: true
+              ACCESS_TOKEN: "{{ github_personal_access_token }}"
+#             APP_ID: "5678"
+#             APP_PRIVATE_KEY: "2345"
+#             APP_LOGIN: "SOMETHING"
+              RUNNER_SCOPE: "{{ runner_scope }}"
+              REPO_URL: "{{ repo_url }}"
+#             ORG_NAME: "{{ org_name }}"
+#             ENTERPRISE_NAME: "emyoung34"
+#             LABELS: "{{ labels }}"
+#             RUNNER_TOKEN: "{{ runner_token }}"
+              RUNNER_WORKDIR: "{{ runner_workdir }}"
+#             RUNNER_GROUP: "{{ runner_group }}"
+#             GITHUB_HOST: "github.example.com"
+#             DISABLE_AUTOMATIC_DEREGISTRATION: "true"
+#             CONFIGURED_ACTIONS_RUNNER_FILES_DIR:
+              EPHEMERAL: "true"
+#             DISABLE_AUTO_UPDATE: "true
+            restart_policy: unless-stopped
+

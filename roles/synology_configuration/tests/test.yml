@@ -1,0 +1,52 @@
+---
+# =============================================================================
+# synology_configuration role test
+# Tests SSH connectivity, fact gathering, and package enumeration
+# Usage: ansible-playbook -i <inventory> roles/synology_configuration/tests/test.yml
+# =============================================================================
+- name: Test synology_configuration role — SSH phase
+  hosts: synology
+  gather_facts: false
+  tasks:
+    - name: Gather Synology device facts
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../../tasks/facts/device.yml"
+      tags: facts
+
+    - name: Assert device facts are populated
+      ansible.builtin.assert:
+        that:
+          - synology_device_facts is defined
+          - synology_device_facts.hostname is defined
+          - synology_device_facts.architecture is defined
+        fail_msg: "Device facts missing or empty for {{ inventory_hostname }}"
+        success_msg: "Device facts OK — {{ synology_device_facts.hostname }} ({{ synology_device_facts.architecture }})"
+      tags: facts
+
+    - name: Gather package facts
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../../tasks/facts/packages.yml"
+      tags: facts
+
+    - name: Assert package facts are populated
+      ansible.builtin.assert:
+        that:
+          - syno_installed_packages is defined
+          - syno_installed_packages | length > 0
+        fail_msg: "Package facts empty or missing for {{ inventory_hostname }}"
+        success_msg: "Package facts OK — {{ syno_installed_packages | length }} packages installed on {{ inventory_hostname }}"
+      tags: facts
+
+    - name: Assert local fact files were written
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/facts/{{ inventory_hostname }}_device.yml"
+      register: _device_fact_file
+      delegate_to: localhost
+
+    - name: Assert device fact file exists
+      ansible.builtin.assert:
+        that:
+          - _device_fact_file.stat.exists
+        fail_msg: "Local device fact file missing: facts/{{ inventory_hostname }}_device.yml"
+        success_msg: "Local device fact file present — facts/{{ inventory_hostname }}_device.yml"
+      delegate_to: localhost

@@ -1,0 +1,13 @@
+---
+- name: Syntax check for synology_bootstrap role
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    synology_bootstrap_dsm_url: "http://172.19.0.43:5000"
+    synology_bootstrap_username: "beavis"
+    synology_bootstrap_password: "test"
+    synology_bootstrap_validate_certs: false
+  tasks:
+    - ansible.builtin.include_tasks:
+        file: roles/synology_bootstrap/tasks/main.yml

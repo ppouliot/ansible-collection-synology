@@ -1,0 +1,26 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+DROP TABLE "Notifications";
+
+CREATE TABLE IF NOT EXISTS "Notifications" ("Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Name" TEXT NOT NULL, "OnGrab" INTEGER NOT NULL, "OnDownload" INTEGER NOT NULL, "Settings" TEXT NOT NULL, "Implementation" TEXT NOT NULL, "ConfigContract" TEXT, "OnUpgrade" INTEGER, "Tags" TEXT, "OnRename" INTEGER NOT NULL, "OnHealthIssue" INTEGER NOT NULL DEFAULT 0, "IncludeHealthWarnings" INTEGER NOT NULL DEFAULT 0, "OnSeriesDelete" INTEGER NOT NULL DEFAULT 0, "OnEpisodeFileDelete" INTEGER NOT NULL DEFAULT 0, "OnEpisodeFileDeleteForUpgrade" INTEGER NOT NULL DEFAULT 1);
+INSERT INTO Notifications VALUES(1,'emby',1,1,replace('{
+  "host": "{{ ansible_default_ipv4.address }}",
+  "port": 8096,
+  "apiKey": "{{ emby_api_key }}",   
+  "notify": true,
+  "updateLibrary": true,
+  "isValid": true
+}','
+',char(10)),'MediaBrowser','MediaBrowserSettings',1,'[]',1,0,0,0,0,1);
+INSERT INTO Notifications VALUES(3,'plex',0,1,replace('{
+  "host": "{{ ansible_default_ipv4.address }}",
+  "port": 32400,
+  "username": "{{ plex_username }}",
+  "password": "{{ plex_password }}",
+  "updateLibrary": true,
+  "useSsl": true,
+  "isValid": true
+}','
+',char(10)),'PlexServer','PlexServerSettings',1,'[]',1,0,0,0,0,1);
+
+COMMIT;

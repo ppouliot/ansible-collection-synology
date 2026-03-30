@@ -1,0 +1,53 @@
+---
+- name: Get existing users
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.User
+    api_version: "1"
+    api_method: list
+    request_method: POST
+  register: _synology_existing_users
+
+- name: Set existing users list fact
+  ansible.builtin.set_fact:
+    _synology_user_names: "{{ _synology_existing_users.json.data.users | map(attribute='name') | list }}"
+
+- name: Create users
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.User
+    api_version: "1"
+    api_method: create
+    request_method: POST
+    api_params:
+      name: "{{ item.name }}"
+      password: "{{ item.password }}"
+      email: "{{ item.email | default('') }}"
+      description: "{{ item.description | default('') }}"
+    ignore_api_errors: [12]  # 12 = user already exists
+  loop: "{{ synology_bootstrap_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in _synology_user_names
+  no_log: true
+
+- name: Add users to groups
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.Group.Member
+    api_version: "1"
+    api_method: add
+    request_method: POST
+    api_params:
+      name: "{{ item.1 }}"
+      members: '["{{ item.0.name }}"]'
+    ignore_api_errors: [103]
+  loop: "{{ synology_bootstrap_users | subelements('groups', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }} → {{ item.1 }}"

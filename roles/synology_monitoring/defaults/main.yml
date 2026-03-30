@@ -1,0 +1,5 @@
+---
+# defaults file for synology_monitoring
+synology_monitoring_enable: false
+synology_monitoring_repo: https://github.com/kernelkaribou/synology-monitoring.git
+influxdb_server: 192.168.1.1

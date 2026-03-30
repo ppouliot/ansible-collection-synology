@@ -1,0 +1,16 @@
+---
+# Bazarr
+swag_container_image: "lscr.io/linuxserver/swag:latest"
+swag_port: "443"
+
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+
+swag_domain_url: "yourdomain.url"
+swag_validation: "dns"
+swag_subdomains: "wildcard"
+swag_dnsplugin: "cloudflare"
+swag_email: bwayne@domain.tld
+swag_docker_mods: "linuxserver/mods:swag-auto-proxy|linuxserver/mods:universal-docker|linuxserver/mods:universal-cloudflared"

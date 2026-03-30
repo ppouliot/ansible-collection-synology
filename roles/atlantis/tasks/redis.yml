@@ -1,0 +1,31 @@
+--- 
+- name: "Atlantis: Redis Cache for Atlantis Locking"
+  block:
+    - name: Redis Daemon Directories
+      file:
+        path: "{{ container_directory_root }}/atlantis/redis"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0755"
+        recurse: true
+
+    - name: "redis"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: redis
+        image: "{{redis_container_image }}"
+        networks:
+          - name: synology-docker-network
+        network_mode: container:atlantis
+        pull: true
+        retries: 5
+        delay: 30
+        state: started
+        command: "redis-server --save 20 1 --loglevel warning --requirepass {{ redis_password }}"
+        restart_policy: unless-stopped
+        volumes:
+          - "{{ container_directory_root }}/atlantis/redis:/data"
+#       ports:
+#         - "{{ redis_port }}:6379"
+        env:

@@ -1,0 +1,9 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+DROP TABLE "Indexers";
+CREATE TABLE IF NOT EXISTS "Indexers" ("Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Name" TEXT NOT NULL, "Implementation" TEXT NOT NULL, "Settings" TEXT, "ConfigContract" TEXT, "EnableRss" INTEGER, "EnableAutomaticSearch" INTEGER, "EnableInteractiveSearch" INTEGER NOT NULL, "Priority" INTEGER NOT NULL DEFAULT 25, "Tags" TEXT, "DownloadClientId" INTEGER NOT NULL DEFAULT 0);
+INSERT INTO Indexers VALUES(1,'IP Torrents','IPTorrents',replace('{\n  "baseUrl": "{{ipt_rss_url }}",\n  "minimumSeeders": 1,\n  "seedCriteria": {},\n  "rejectBlocklistedTorrentHashesWhileGrabbing": false,\n  "multiLanguages": [],\n  "requiredFlags": []\n}','\n',char(10)),'IPTorrentsSettings',1,0,0,25,'[]',0);
+INSERT INTO Indexers VALUES(2,'NZBgeek','Newznab',replace('{\n  "baseUrl": "{{ nzbgeek_api_url }}",\n  "apiPath": "/api",\n  "apiKey": "{{ nzbgeek_api_key }}",\n  "categories": [\n    2000,\n    2010,\n    2020,\n    2030,\n    2040,\n    2045,\n    2050,\n    2060\n  ],\n  "multiLanguages": [],\n  "removeYear": false\n}','\n',char(10)),'NewznabSettings',1,1,0,25,'[]',0);
+INSERT INTO Indexers VALUES(3,'Nyaa','Nyaa',replace('{\n  "baseUrl": "https://www.nyaa.si",\n  "additionalParameters": "\u0026cats=1_0\u0026filter=1",\n  "minimumSeeders": 1,\n  "seedCriteria": {},\n  "rejectBlocklistedTorrentHashesWhileGrabbing": false,\n  "multiLanguages": [],\n  "requiredFlags": []\n}','\n',char(10)),'NyaaSettings',1,1,1,25,'[]',0);
+CREATE UNIQUE INDEX "IX_Indexers_Name" ON "Indexers" ("Name" ASC);
+COMMIT;

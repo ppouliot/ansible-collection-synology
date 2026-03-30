@@ -1,0 +1,53 @@
+---
+- name: Get current package feeds
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.Package.Feed
+    api_version: "1"
+    api_method: list
+    request_method: POST
+    ignore_api_errors: [119]
+  register: _synology_existing_feeds
+
+- name: Debug — Get current package feeds
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Get current package feeds"
+  when: _synology_existing_feeds.ignored_api_error is defined and _synology_existing_feeds.ignored_api_error == 119
+
+- name: Set existing feed names fact
+  ansible.builtin.set_fact:
+    _synology_feed_names: "{{ (_synology_existing_feeds.json.data['items'] | default([])) | map(attribute='name') | list }}"
+
+- name: Add package feeds
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.Package.Feed
+    api_version: "1"
+    api_method: add
+    request_method: POST
+    api_params:
+      list: "{{ {'name': item.name, 'feed': item.feed} | to_json | to_json }}"
+    ignore_api_errors: [119]
+  loop: "{{ synology_bootstrap_package_feeds }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in _synology_feed_names
+  register: _add_package_feeds
+
+- name: Debug — Add package feeds
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Add package feeds"
+  when: _add_package_feeds.ignored_api_error is defined and _add_package_feeds.ignored_api_error == 119
+
+- name: Note — tasks requiring DSM admin account
+  ansible.builtin.debug:
+    msg: >
+      Some tasks in this file require the built-in DSM admin account (SYNO.Core.* write APIs).
+      If you see 'ignored_api_error: 119', enable the admin account temporarily or run bootstrap
+      as admin. Affected APIs: SYNO.Core.Package.Feed, SYNO.Core.FileServ.*, SYNO.Core.Share,
+      SYNO.Core.Region.NTP, SYNO.Core.Security.*, SYNO.Core.Terminal, SYNO.Core.User.Home
+  when: false  # informational only — never actually runs

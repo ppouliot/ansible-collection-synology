@@ -1,0 +1,45 @@
+---
+# defaults file for atlantis
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+
+# Atlantis
+atlantis_container_image: "runatlantis/atlantis:latest"
+atlantis_port: 4141
+atlantis_atlantis_url: https:///{{ ansible_default_ipv4.address }}
+atlantis_gh_user: fake
+atlantis_gh_token: fake
+atlantis_gh_webhook_secret:
+atlantis_gl_user:
+atlantis_gl_token:
+atlantis_gl_webhook_secret:
+atlantis_repo_allowlist: github.com/your-org/*
+atlantis_repo_config: repos.yaml
+atlantis_enable_policy_checks: false
+atlantis_log_level: debug
+atlantis_locking_db_type: redis
+
+# Minio
+atlantis_minio_enable: false
+minio_container_image: "minio/minio:latest"
+minio_access_key: 
+minio_secret_key:
+minio_port: 9000
+minio_hostname: s3.domain.tld
+
+# Redis
+atlantis_redis_enable: false
+atlantis_redis_db: 0
+atlantis_redis_host: localhost
+redis_container_image: "redis:latest"
+redis_port: 6379
+redis_password: eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+
+# Valkey
+atlantis_valkey_enable: false
+atlantis_valkey_db: 0
+atlantis_valkey_host: localhost
+valkey_container_image: "valkey/valkey:unstable"
+valkey_port: 6379
+valkey_password: eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81

@@ -1,0 +1,14 @@
+---
+# defaults file for plex_stack
+
+# plex
+plex_container_image: "plexinc/pms-docker:plexpass"
+
+# Tautulli
+tautulli_container_image: "lscr.io/linuxserver/tautulli:latest"
+tautulli_exposed_port: 8182
+
+# OMBI
+ombi_container_image: "lscr.io/linuxserver/ombi:latest"
+ombi_exposed_port: 3579
+

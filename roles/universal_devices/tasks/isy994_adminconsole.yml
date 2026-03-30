@@ -1,0 +1,16 @@
+---
+
+- name: Run UDI ISY994 admin console via automationgeek/isy994-adminconsole-docker
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: isy994-adminconsole 
+    image: "{{isy994_adminconsole_image }}"
+    restart_policy: always
+    pull: yes
+    env:
+      DISPLAY_WIDTH: "1920"
+      DISPLAY_HEIGHT: "1080"
+      ISY994_HOST: "{{ isy994_address }}"
+    ports:
+      - 5800:5800
+      - 5900:5900

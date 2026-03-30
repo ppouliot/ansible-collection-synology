@@ -1,0 +1,21 @@
+---
+# defaults file for kometa
+kometa_container_image: "kometateam/kometa"
+imagemaid_container_image: "kometateam/imagemaid"
+overlay-reset_container_image: "kometateam/overlay-reset"
+tatulli_api_key:
+mdblist_api_key:
+anidb_username:
+anidb_password:
+github_access_token:
+plex_token:
+tautulli_api_key:
+# port is taken from the tautulli role
+tautulli_port: "8182"
+tmdb_api_key:
+trakt_client_id:
+trakt_client_secret:
+trakt_pin:
+mal_client_id:
+mal_client_secret:
+notifiarr_api_key:

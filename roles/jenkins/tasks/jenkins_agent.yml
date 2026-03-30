@@ -1,0 +1,53 @@
+---
+- name: Jenkins Directory Structure On Synology
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  with_items:
+    - "{{ container_directory_root }}/jenkins"
+    - "{{ container_directory_root }}/jenkins/agents"
+    - "{{ container_directory_root }}/jenkins/agents/1"
+    - "{{ container_directory_root }}/jenkins/agents/2"
+# Not sure if neededfor agent yet, we're not doing dind
+# - name: Add permissions for docker user to the docker socket
+#   file:
+#     path: /var/run/docker.sock
+#     state: file
+#     owner: "{{ user_puid }}"
+#     group: "{{ group_pgid }}"
+- name: Launch Jenkins Agent 1
+  docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: jenkins-agent-1
+    image: "{{ jenkins_agent_container_image }}"
+    networks:
+      - name: synology-docker-network
+    restart_policy: always
+    pull: true
+    env:
+      JENKINS_AGENT_SSH_PUBKEY: "{{ jenkins_agent_ssh_pubkey }}"
+    ports:
+      - 9091:22/tcp
+    volumes:
+      - "{{ container_directory_root }}/jenkins/agents/1:/var/jenkins_home"
+      - /var/run/docker.sock:/var/run/docker.sock
+- name: Launch Jenkins Agent 2
+  docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: jenkins-agent-2
+    image: "{{ jenkins_agent_container_image }}"
+    networks:
+      - name: synology-docker-network
+    restart_policy: always
+    pull: true
+    env:
+      JENKINS_AGENT_SSH_PUBKEY: "{{ jenkins_agent_ssh_pubkey }}"
+    ports:
+      - 9092:22/tcp
+    volumes:
+      - "{{ container_directory_root }}/jenkins/agents/2:/var/jenkins_home"
+#     - /var/run/docker.sock:/var/run/docker.sock

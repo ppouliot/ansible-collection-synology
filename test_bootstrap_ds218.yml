@@ -1,0 +1,4 @@
+---
+# Integration test for DS218 — delegates to site.yml
+# ansible-playbook -i inventory_ds218.ini test_bootstrap_ds218.yml
+- import_playbook: site.yml

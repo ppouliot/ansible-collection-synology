@@ -1,0 +1,34 @@
+---
+# https://dr-b.io/post/Synology-DSM-7-with-Lets-Encrypt-and-DNS-Challenge
+#cd /usr/local/share/acme.sh
+#export GD_KEY="YOUR GODADDY KEY"
+#export GD_SECRET="YOUR GODADDY SECRET"
+#export SYNO_USERNAME="certadmin"
+#export SYNO_PASSWORD="YOUR CERTADMIN PASSWORD"
+#export SYNO_CERTIFICATE="Let's Encrypt"
+#export SYNO_CREATE=1
+
+- name: Certificate Commands
+  environement:
+    syno_username: "{{ synology_dsm_username }}"
+    syno_password: "{{ synology_dsm_password }}"
+    syno_certificate: "Let's Encrypt"
+    syno_create: "1"
+  block:
+    - name: ACME get certificate
+      ansible.builtin.command:
+        args:
+          cmd: "/usr/local/share/acme.sh/acme.sh --server letsencrypt --issue -d "*.YOURDOMAIN.NAME" --dns dns_cf --home /usr/local/share/acme.sh"
+          chdir: /usr/local/share/acme.sh
+
+    - name: ACME use certifcate 
+      ansible.builtin.command:
+        args:
+          cmd: "/usr/local/share/acme.sh/acme.sh -d "*.YOURDOMAIN.NAME" --deploy --deploy-hook synology_dsm --home /usr/local/share/acme.sh"
+          chdir: /usr/local/share/acme.sh
+
+    - name: ACME renew certifcate 
+      ansible.builtin.command:
+        args:
+          cmd: "/usr/local/share/acme.sh/acme.sh --renew -d "*.YOURDOMAIN.NAME" --home /usr/local/share/acme.sh --server letsencrypt"
+          chdir: /usr/local/share/acme.sh

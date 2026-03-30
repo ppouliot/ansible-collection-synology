@@ -1,0 +1,69 @@
+---
+# tasks file for kometa
+
+- name: "Kometa: Create directories to house kometa config data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/kometa"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: yes
+  tags:
+    - kometa
+
+- name: "Kometa: Create kometa/config directory"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/kometa/config"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: yes
+  tags:
+    - kometa
+
+- name: "Kometa: Create kometa/config/assets directory"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/kometa/config/assets"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+  tags:
+    - kometa
+
+- name: "Kometa: Deploy kometa config file"
+  ansible.builtin.template:
+    src: "config.yml.j2"
+    dest: "{{ container_directory_root }}/kometa/config/config.yml"
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0600"
+  register: kometa_config
+  tags:
+    - kometa
+
+- name: "Kometa: Run kometa container"
+  block:
+    - name: "Kometa: Run kometa container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: kometa
+        image: "{{ kometa_container_image }}"
+        pull: yes
+        command: "tini -s python3 kometa.py --"
+        volumes:
+          - "{{ container_directory_root }}/kometa/config:/config:rw"
+        env:
+          PLEX_META_MANAGER_UID: "{{ user_puid }}"
+          PLEX_META_MANAGER_GID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          PLEX_CLAIM: "{{ plex_claim_token }}"
+          ADVERTISE_IP: "http://{{ ansible_default_ipv4.address }}:32400"
+          PMM_DOCKER: "true"
+        restart_policy: unless-stopped
+        state: started
+  tags:
+    - kometa
+  # End Block

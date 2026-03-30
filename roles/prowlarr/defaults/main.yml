@@ -1,0 +1,13 @@
+---
+# Prowlarr
+prowlarr_container_image: "lscr.io/linuxserver/prowlarr:nightly"
+
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+prowlarr_port: "9696"
+sonarr_api_key: "{{ ansible_facts['sonarr_api_key'] }}"
+radarr_api_key: "{{ ansible_facts['radarr_api_key'] }}"
+lidarr_api_key: "{{ ansible_facts['lidarr_api_key'] }}"
+readarr_api_key: "{{ ansible_facts['lidarr_api_key'] }}"

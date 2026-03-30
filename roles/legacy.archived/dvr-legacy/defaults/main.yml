@@ -1,0 +1,4 @@
+---
+# defaults file for dvr
+hdhomerun_enable: false
+tvheadend_enable: false

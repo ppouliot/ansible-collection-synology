@@ -1,0 +1,17 @@
+---
+- name: Syntax check wrapper for synology_configuration role
+  hosts: localhost
+  gather_facts: false
+  vars:
+    synology_docker_enable: false
+    synology_package_list: []
+    synology_upgrade_packages: false
+    synology_upptime_enable: false
+    synology_cloudflare_ddns_enable: false
+    synology_pip_upgrade: false
+    synology_ghcr_pat: "placeholder"
+    synology_ghcr_user: "ppouliot"
+  tasks:
+    - name: Include synology_configuration main tasks
+      ansible.builtin.include_tasks:
+        file: roles/synology_configuration/tasks/main.yml

@@ -1,0 +1,36 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE IF NOT EXISTS "Indexers" ("Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Name" TEXT NOT NULL, "Implementation" TEXT NOT NULL, "Settings" TEXT, "ConfigContract" TEXT, "EnableRss" TINYINT, "EnableAutomaticSearch" TINYINT, "EnableInteractiveSearch" TINYINT NOT NULL, "Priority" INTEGER NOT NULL DEFAULT 25, "Tags" TEXT, "DownloadClientId" INTEGER NOT NULL DEFAULT 0);
+INSERT INTO Indexers VALUES(2,'NZBgeek','Newznab',replace('{
+  "baseUrl": "https://api.nzbgeek.info",
+  "apiPath": "/api",
+  "apiKey": "{{ nzbgeek_api_key }}",
+  "categories": [
+    3030,
+    7020,
+    8010
+  ]
+}','
+',char(10)),'NewznabSettings',1,1,1,25,NULL,0);
+{% if jackett_api_key is defined and jackett_api_key|d('')|length > 0 %}
+INSERT INTO Indexers VALUES(3,'Jackett-Synology','Torznab',replace('{
+  "minimumSeeders": 1,
+  "seedCriteria": {},
+  "baseUrl": "http://{{  ansible_default_ipv4.address }}:9117/api/v2.0/indexers/iptorrents/results/torznab/",
+  "apiPath": "/api",
+  "apiKey": "{{ jackett_api_key }}",
+  "categories": [
+    3030,
+    7020,
+    8010
+  ]
+}','
+',char(10)),'TorznabSettings',1,1,1,25,NULL,0);
+{% endif %}
+INSERT INTO Indexers VALUES(4,'IPTorrents','IPTorrents',replace('{
+  "baseUrl": "{{ ipt_rss_url }}",
+  "minimumSeeders": 1,
+  "seedCriteria": {}
+}','
+',char(10)),'IPTorrentsSettings',1,0,0,25,NULL,0);
+COMMIT;

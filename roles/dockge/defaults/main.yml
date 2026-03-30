@@ -1,0 +1,10 @@
+---
+# defaults file for dockge
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+
+dockge_container_image: "louislam/dockge:latest"
+dockge_container_name: "dockge"
+dockge_web_port: "5001"
+dockge_stacks_dir: "/volume1/docker/stacks"

@@ -1,0 +1,35 @@
+---
+# tasks file for hdhomerun
+
+- name: "HDHomerun: Create directories to house hdhomerun data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/hdhomerun"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  tags:
+    - hdhomerun
+
+- name: "HDHomerun: Create hdhomerun recording engine container"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: hdhomerun
+    image: "{{ hdhomerun_container_image }}"
+    pull: true
+    retries: 5
+    delay: 30
+    network_mode: host
+    volumes:
+      - "{{ container_directory_root }}/hdhomerun:/hdhomerun"
+      - "/etc/localtime:/etc/localtime:ro"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK_SET: "022"
+    restart_policy: unless-stopped
+    state: started
+  tags:
+    - hdhomerun

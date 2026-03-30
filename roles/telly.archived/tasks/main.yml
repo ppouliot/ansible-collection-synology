@@ -1,0 +1,165 @@
+---
+
+- name: "Telly: Check if Telly container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/telly"
+  register: _telly_config_dir
+  tags:
+    - telly
+    - telly_root
+
+- name: "Telly: Filesystem Directories"
+  block:
+    - name: Create Telly Daemon Directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0755"
+        recurse: true
+      with_items:
+          - "{{ container_directory_root }}/telly"
+      tags:
+        - telly
+        - telly_root
+      when:
+        - _telly_config_dir is defined
+        - not _telly_config_dir.stat.exists
+
+    - name: Add telly/telly.config.toml
+      template:
+        src: telly.config.toml.j2
+        dest: "{{ container_directory_root }}/telly/telly.config.toml"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: 0775
+      register: _telly_config
+
+
+- name: "Telly: Check if Telly container is running"
+  community.general.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: telly
+  register: _telly_state
+  tags:
+    - telly
+
+- name: "Telly: set facts"
+  ansible.builtin.set_fact:
+    telly_port: "{{ telly_port }}"
+    telly_config_dir: "{{ _telly_config_dir }}"
+    cacheable: true
+  tags:
+    - telly
+
+- name: "Telly: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: Create telly container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: telly
+        image: "{{ telly_container_image }}"
+        ports:
+          - "{{ telly_port }}:6077"
+        pull: true
+        restart_policy: unless-stopped
+        state: started
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        volumes:
+          - "{{ container_directory_root }}/telly:/etc/telly/"
+      register: _telly_status
+    - name: "Telly: Set telly_is_running fact"
+      ansible.builtin.set_fact:
+        telly_is_running: "{{ _telly_status.container.State.Running }}"
+        cacheable: true
+
+    - name: "wait for telly to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ telly_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+
+  when: not _telly_state.exists
+  tags:
+    - telly
+    - telly_install
+
+  # End Block
+
+
+
+- name: "Telly: restart and set facts"
+  block:
+
+    - name: restart telly container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: telly
+        image: "{{ telly_container_image }}"
+        ports:
+          - "{{ telly_port }}:6077"
+        pull: true
+        restart: true
+        restart_policy: unless-stopped
+        state: started
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        volumes:
+          - "{{ container_directory_root }}/telly:/etc/telly"
+      register: _telly_status
+    - name: "Telly: Set telly_is_running fact"
+      ansible.builtin.set_fact:
+        telly_is_running: "{{ _telly_status.container.State.Running }}"
+        cacheable: yes
+
+
+    - name: "wait for telly to come up and test with new password"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ telly_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+  when: _telly_state.exists
+  tags:
+    - telly
+  # end block
+
+- name: "Telly: Set Facts"
+  ansible.builtin.set_fact:
+    telly_config_dir: "{{ _telly_config_dir }}"
+    telly_port: "{{ telly_port }}"
+    cacheable: true
+  tags: 
+    - telly
+    - telly_facts
+
+
+- name: "Telly: print facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "telly_port: {{ telly_port }}"
+    - "telly_config_dir: {{ telly_config_dir }}"
+    - "telly_is_running: {{ telly_is_running }}"
+  tags:
+    - telly
+    - telly_facts
+
+- name: Re-read facts after adding custom fact
+  ansible.builtin.setup:
+    filter: ansible_local

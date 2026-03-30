@@ -1,0 +1,43 @@
+---
+# tasks file for emby
+
+- name: "Create directories to house emby config and transcode data"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+  with_items:
+    - "{{ container_directory_root }}/emby"
+    - "{{ container_directory_root }}/emby/transcode"
+    
+- block:
+    - name: Run emby container
+      docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: emby
+        image:  "{{ emby_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: yes
+        ports:
+          - 8096:8096
+          - 8920:8920
+        devices:
+          - /dev/dri:/dev/dri
+        volumes:
+          - "{{ container_directory_root }}/emby:/config"
+          - "{{ container_directory_root }}/emby/transcode:/transcode"
+          - "{{ container_directory_root }}/tv:/data/tvshows"
+          - "{{ container_directory_root }}/movies:/data/movies"
+          - "{{ container_directory_root }}/music:/data/music"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK_SET: "022"
+        restart_policy: unless-stopped
+  # End Block
+    

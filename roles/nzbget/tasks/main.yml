@@ -1,0 +1,171 @@
+---
+- name: "NZBGet: check for downloads directory"
+  ansible.builtin.stat:
+    path: /volume1/docker/downloads
+  register: _nzbget_download_dir
+  tags:
+    - nzbget
+- name: "NZBGet: check for nzbget directory"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/nzbget"
+  register: _nzbget_config_dir
+  tags:
+    - nzbget
+- name: "NZBGet: Create directories to house nzbget data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/nzbget"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _nzbget_config_dir
+  when:
+    - _nzbget_config_dir is defined
+    - not _nzbget_config_dir.stat.exists
+  tags:
+    - nzbget
+- name: "NZBGet: Check if nzbget is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: nzbget
+  register: _nzbget_state
+  tags:
+    - nzbget
+- name: "NZBGet: Set NZBGet facts"
+  ansible.builtin.set_fact:
+    nzbget_port: "{{ nzbget_port }}"
+    nzbget_download_dir: "{{ _nzbget_download_dir }}"
+    nzbget_config_dir: "{{ _nzbget_config_dir }}"
+    nzbget_state: "{{ _nzbget_state }}"
+    cacheable: true
+  tags:
+    - nzbget
+- name: "NZBGet: CONTAINER INSTALL AND CONFIGURE"
+  block:
+    - name: "NZBGet: Create nzbget container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: nzbget
+        image: "{{ nzbget_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/nzbget:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          DELUGE_LOGLEVEL: "error"
+        restart_policy: unless-stopped
+      register: _nzbget_status
+    - name: "NZBGet: Set nzbget_is_running fact"
+      ansible.builtin.set_fact:
+        nzbget_is_running: "{{ _nzbget_status.container.State.Running }}"
+    - name: "NZBGet: Wait for nzbget to come up"
+      ansible.builtin.uri:
+        url: "http://nzbget:tegbzn{{ nzbget_port }}@{{ ansible_default_ipv4.address }}:{{ nzbget_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "NZBGet: Stop nzbget"
+      community.docker.docker_container:
+        name: nzbget
+        state: stopped
+    - name: "NZBGet: Add nzbget.conf"
+      ansible.builtin.template:
+        src: nzbget.conf.j2
+        dest: "{{ container_directory_root }}/nzbget/nzbget.conf"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "NZBGet: Create nzbget container (post-config)"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: nzbget
+        image: "{{ nzbget_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/nzbget:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          DELUGE_LOGLEVEL: "error"
+        restart_policy: unless-stopped
+      register: _nzbget_status
+    - name: "NZBGet: Wait for nzbget to come up and test with new password"
+      ansible.builtin.uri:
+        url: "http://nzbget:{{ nzbget_control_password }}@{{ ansible_default_ipv4.address }}:{{ nzbget_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+  when: not _nzbget_state.exists
+  tags:
+    - nzbget
+  # End Block
+- name: "NZBGet: Ensure nzbget started"
+  block:
+    - name: "NZBGet: Restart nzbget"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: nzbget
+        image: "{{ nzbget_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/nzbget:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          DELUGE_LOGLEVEL: "error"
+        state: started
+        restart_policy: unless-stopped
+      register: _nzbget_status
+    - name: "NZBGet: Set nzbget_is_running fact"
+      ansible.builtin.set_fact:
+        nzbget_is_running: "{{ _nzbget_status.container.State.Running }}"
+    - name: "NZBGet: Wait for nzbget to come up and test with new password"
+      ansible.builtin.uri:
+        url: "http://nzbget:{{ nzbget_control_password }}@{{ ansible_default_ipv4.address }}:{{ nzbget_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+  when: _nzbget_state.exists
+  tags:
+    - nzbget
+  # end block
+- name: "NZBGet: print facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "nzbget_port: {{ nzbget_port }}"
+    - "nzbget_config_dir: {{ nzbget_config_dir }}"
+    - "nzbget_download_dir: {{ nzbget_download_dir }}"
+    - "nzbget_state: {{ nzbget_state }}"
+    - "nzbget_is_running: {{ nzbget_is_running }}"
+  tags:
+    - nzbget

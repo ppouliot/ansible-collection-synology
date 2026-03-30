@@ -1,0 +1,21 @@
+---
+
+- name: "Exportarr: Create exportarr_lidarr container"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: exportarr_lidarr
+    image: "{{ exportarr_container_image }}"
+    pull: yes
+    ports:
+      - "{{ lidarr_exportarr_port }}:{{ lidarr_exportarr_port }}"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK: "022"
+      PORT: "{{ lidarr_exportarr_port }}"
+      URL: "http://{{ ansible_default_ipv4.address }}:{{ lidarr_port }}"
+      APIKEY: "{{ lidarr_api_key }}"
+    command: ["lidarr"]
+    state: started
+    restart_policy: unless-stopped

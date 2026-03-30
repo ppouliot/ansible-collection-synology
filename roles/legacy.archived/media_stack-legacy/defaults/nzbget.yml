@@ -1,0 +1,19 @@
+---
+
+# roles/synology/tasks/nzbget.yml
+
+nzbget_container_image: "ghcr.io/linuxserver/nzbget:latest"
+nzbget_control_password: nzbget
+
+# Easynews Information
+easynews_server1_name: "secure-us.news.easynews.com"
+easynews_server1_port: "443"
+easynews_server1_encryption: "yes"
+easynews_server2_name: "secure.news.easynews.com"
+easynews_server2_port: "443"
+easynews_server2_encryption: "yes"
+easynews_username: "myeasynews"
+easynews_password: "myeasynewspassword"
+easynews_retention_period: "0"
+easynews_connections: "4"
+

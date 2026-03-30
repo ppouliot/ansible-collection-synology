@@ -1,0 +1,19 @@
+---
+
+# Gluetun
+gluetun_control_port: 8000
+gluetun_container_version: "v3.34.3" # 3.24.2 works
+gluetun_vpn_service_provider: "private internet access"
+gluetun_vpn_type: openvpn
+gluetun_openvpn_user: abc123
+gluetun_openvpn_password: abc123
+gluetun_openvpn_regions: Switzerland
+gluetun_wireguard_private_key: "aBCD1fghijklmN0/Pqrs22vWx34ZaB5dEfGHijklmNO="
+gluetun_wireguard_addresses: "10.64.222.21/32"
+gluetun_firewall_outbound_subnets: "10.0.0.0/8,192.168.0.0/16,172.16.0.0/12"
+gluetun_ipinfo_url: "https://api.ipinfo.io"
+
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

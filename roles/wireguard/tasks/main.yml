@@ -1,0 +1,210 @@
+---
+
+- ansible.builtin.stat:
+    path: "{{ container_directory_root }}/wireguard"
+  register: _wireguard_config_dir
+  tags:
+    - wireguard
+
+- name: "Create directories to house wireguard data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/wireguard"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+  register: _wireguard_config_dir
+  tags:
+    - wireguard 
+  when:
+    - _wireguard_config_dir is defined
+    - not _wireguard_config_dir.stat.exists
+
+
+- name: "Create directories to house wireguard pia config and port forward data"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+  with_items:
+    - "{{ container_directory_root }}/wireguard/pia"
+    - "{{ container_directory_root }}/wireguard/pia-shared"
+
+
+- name: Check if wireguard is running
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: wireguard
+  tags:
+    - wireguard
+  register: _wireguard_state
+
+- name: Set Wiregard facts 
+  ansible.builtin.set_fact:
+    wireguard_config_dir: "{{ _wireguard_config_dir }}"
+    wireguard_state: "{{ _wireguard_state }}"
+  tags:
+    - wireguard
+
+- block:
+
+    - name: Launch Wireguard VPN Container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: wireguard
+        image: qmcgaw/wireguard
+        capabilities:
+          - NET_ADMIN
+        network_mode: bridge
+        tty: yes
+        detach: yes
+        pull: yes
+        volumes:
+          - "{{ container_directory_root }}/wireguard:/wireguard"
+          - "/dev/net/tun:/dev/net/tun"
+        env:
+          VPNSP: "{{ wireguard_vpn_service_provider }}"
+          USER: "{{ wireguard_vpnsp_user }}"
+          PASSWORD: "{{ wireguard_vpnsp_password }}"
+          REGION: "{{ wireguard_vpnsp_region }}"
+          EXTRA_SUBNETS: "{{ wireguard_extra_subnets }}"
+    #     PIA_ENCRYPTION: "normal"
+    #     OPENVPN_CIPHER: "BF-CBC"
+        ports:
+          - "8888:8888/tcp"
+          - "8388:8388/tcp"
+          - "8388:8388/udp"
+          # Deluge
+          - "8112:8112"
+          # NzbGet
+          - "6789:6789"
+          # NzbHydra2
+          - "5076:5076"
+          # Jackett
+          - "9117:9117"
+          # Bazarr
+          - "6767:6767"
+          # Sonarr
+          - "8989:8989"
+          # Radarr
+          - "7878:7878"
+          # Couchpotato
+          - "5050:5050"
+          # Mylar
+          - "8090:8090"
+          # Lidarr
+          - "8686:8686"
+          # headphones
+          - "8181:8181"
+          # tvheadend
+          #- "9981:9981"
+          #- "9982:9982"
+          - "{{ wireguard_control_port }}:8000/tcp"
+        restart_policy: always
+        state: started
+      register: _wireguard_status
+
+    - name: Gluetun is Running
+      set_fact:
+        #wireguard_is_running: "{{ _wireguard_status.ansible_facts.docker_container.State.Running }}"
+        wireguard_is_running: "{{ _wireguard_status.container.State.Running }}"
+
+    - debug:
+        msg: "{{ wireguard_is_running }}"
+
+    - name: test vpn connection and generate fact
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: wireguard-connection-test
+        image: alpine:latest
+        detach: false
+        network_mode: container:wireguard
+        entrypoint: sh
+        command: -c 'wget -qO- https://ipinfo.io'
+
+    - name: dump wireguard-connect-test log
+      command:
+        cmd: /usr/local/bin/docker logs wireguard-connection-test
+      become: true
+      register: _wireguard_connection
+
+    - name: wireguard connection info
+      set_fact:
+        wireguard_connection: "{{ _wireguard_connection }}"
+
+    - debug:
+        msg: "{{ _wireguard_connection }}"
+
+  # End Block
+  tags:
+    - wireguard
+  when: not _wireguard_state.exists
+
+- block:
+    - name: Restart Wireguard VPN
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: wireguard
+        image: thrnz/docker-wireguard-pia
+        capabilities:
+          - NET_ADMIN
+          - SYS_MODULE
+        network_mode: bridge
+        tty: yes
+        detach: yes
+        pull: yes
+        volumes:
+          - "{{ container_directory_root }}/wireguard:/wireguard"
+          - "/dev/net/tun:/dev/net/tun"
+        env:
+          USER: "{{ pia_user }}"
+          PASSWORD: "{{ pia_password }}"
+          LOC: "swiss"
+        restart_policy: always
+        state: started
+      register: _wireguard_status
+
+    - name: set wireguard_is_running fact
+      set_fact:
+        #wireguard_is_running: "{{ _wireguard_status.ansible_facts.docker_container.State.Running }}"
+        wireguard_is_running: "{{ _wireguard_status.container.State.Running }}"
+
+    - name: test vpn connection and generate fact
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: wireguard-connection-test
+        image: alpine:latest
+        detach: false
+        network_mode: container:wireguard
+        entrypoint: sh
+        command: -c 'wget -qO- https://ipinfo.io'
+
+    - name: dump wireguard-connect-test log
+      command:
+        cmd: /usr/local/bin/docker logs wireguard-connection-test
+      become: true
+      register: _wireguard_connection
+
+    - name: wireguard connection info
+      set_fact:
+        wireguard_connection: "{{ _wireguard_connection }}"
+
+
+    - debug:
+        msg: "{{ _wireguard_connection }}"
+
+  when: _wireguard_state.exists
+
+- debug:
+    msg: "{{ item }}"
+  loop:
+    - "wireguard_config_dir: {{ wireguard_config_dir }}"
+    - "wireguard_state: {{ wireguard_state }}"
+    - "wireguard_is_running: {{ wireguard_is_running }}"
+    - "wireguard_connection: {{ wireguard_connection }}"
+  tags:
+    - wireguard

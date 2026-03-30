@@ -1,0 +1,22 @@
+---
+- name: Login to DSM API and obtain SID
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    cgi_name: auth.cgi
+    api_name: SYNO.API.Auth
+    api_version: "3"
+    api_method: login
+    request_method: POST
+    api_params:
+      account: "{{ synology_bootstrap_admin_username }}"
+      passwd: "{{ synology_bootstrap_admin_password }}"
+      session: ansible_bootstrap
+      format: sid
+  register: synology_bootstrap_login
+  no_log: true
+
+- name: Set SID fact
+  ansible.builtin.set_fact:
+    synology_bootstrap_sid: "{{ synology_bootstrap_login.json.data.sid }}"
+  no_log: true

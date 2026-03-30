@@ -1,0 +1,30 @@
+---
+- name: Create Ergo Directories
+  file:
+    path: "{{ container_directory_root }}/ergo"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+- name: Create Ergo container
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: ergo
+    image: "{{ ergo_container_image }}"
+    ports:
+      - "{{ ergo_port }}:6667"
+      - "6697:6697"
+    pull: true
+    retries: 5
+    delay: 30
+    network_mode: bridge
+    volumes:
+      - "{{ container_directory_root }}/ergo:/ircd"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+    ports:
+      - "{{ ergo_port }}:80"
+    restart_policy: unless-stopped

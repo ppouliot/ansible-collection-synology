@@ -1,0 +1,77 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE IF NOT EXISTS "Applications" ("Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Name" TEXT NOT NULL, "Implementation" TEXT NOT NULL, "Settings" TEXT, "ConfigContract" TEXT, "SyncLevel" INTEGER NOT NULL, "Tags" TEXT);
+INSERT INTO Applications VALUES(1,'Sonarr','Sonarr',replace('{
+  "prowlarrUrl": "http://{{ ansible_default_ipv4.address }}:9696",
+  "baseUrl": "http://{{ ansible_default_ipv4.address }}:8989",
+  "apiKey": "{{ sonarr_api_key }}",
+  "syncCategories": [
+    5000,
+    5010,
+    5020,
+    5030,
+    5040,
+    5045,
+    5050,
+    5090
+  ],
+  "animeSyncCategories": [
+    5070
+  ],
+  "syncAnimeStandardFormatSearch": false,
+  "syncRejectBlocklistedTorrentHashesWhileGrabbing": false
+}','
+',char(10)),'SonarrSettings',2,'[]');
+INSERT INTO Applications VALUES(2,'Radarr','Radarr',replace('{
+  "prowlarrUrl": "http://{{ ansible_default_ipv4.address }}:9696",
+  "baseUrl": "http://{{ ansible_default_ipv4.address }}:7878",
+  "apiKey": "{{ radarr_api_key }}",
+  "syncCategories": [
+    2000,
+    2010,
+    2020,
+    2030,
+    2040,
+    2045,
+    2050,
+    2060,
+    2070,
+    2080,
+    2090
+  ],
+  "syncRejectBlocklistedTorrentHashesWhileGrabbing": false
+}','
+',char(10)),'RadarrSettings',2,'[]');
+INSERT INTO Applications VALUES(3,'Lidarr','Lidarr',replace('{
+  "prowlarrUrl": "http://{{ ansible_default_ipv4.address }}:9696",
+  "baseUrl": "http://{{ ansible_default_ipv4.address }}:8686",
+  "apiKey": "{{ lidarr_api_key }}",
+  "syncCategories": [
+    3000,
+    3010,
+    3030,
+    3040,
+    3050,
+    3060
+  ],
+  "syncRejectBlocklistedTorrentHashesWhileGrabbing": false
+}','
+',char(10)),'LidarrSettings',2,'[]');
+INSERT INTO Applications VALUES(4,'Readarr','Readarr',replace('{
+  "prowlarrUrl": "http://{{ ansible_default_ipv4.address }}:9696",
+  "baseUrl": "http://{{ ansible_default_ipv4.address }}:8787",
+  "apiKey": "{{ readarr_api_key }}",
+  "syncCategories": [
+    3030,
+    7000,
+    7010,
+    7020,
+    7030,
+    7040,
+    7050,
+    7060
+  ],
+  "syncRejectBlocklistedTorrentHashesWhileGrabbing": false
+}','
+',char(10)),'ReadarrSettings',2,'[]');
+COMMIT;

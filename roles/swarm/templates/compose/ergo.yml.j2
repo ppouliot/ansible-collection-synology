@@ -1,0 +1,20 @@
+---
+# https://github.com/ergochat/ergo
+# https://ergo.chat/
+version: '3.5'
+services:
+  ergo:
+    init: true
+    image: ghcr.io/ergochat/ergo:stable
+    ports:
+      - "6667:6667/tcp"
+      - "6697:6697/tcp"
+    volumes:
+      - "{{ container_directory_root }}/ergo:/ircd
+    deploy:
+      placement:
+        constraints:
+          - "node.role == manager"
+      restart_policy:
+        condition: on-failure
+      replicas: 1

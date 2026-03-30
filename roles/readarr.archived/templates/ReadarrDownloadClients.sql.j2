@@ -1,0 +1,29 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+
+CREATE TABLE IF NOT EXISTS "DownloadClients" ("Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Enable" INTEGER NOT NULL, "Name" TEXT NOT NULL, "Implementation" TEXT NOT NULL, "Settings" TEXT NOT NULL, "ConfigContract" TEXT NOT NULL, "Priority" INTEGER NOT NULL DEFAULT 1, "Tags" TEXT, "RemoveCompletedDownloads" INTEGER NOT NULL DEFAULT 1, "RemoveFailedDownloads" INTEGER NOT NULL DEFAULT 1);
+
+INSERT INTO DownloadClients VALUES(1,1,'nzbget-synology','Nzbget',replace('{
+  "host": "{{ ansible_default_ipv4.address }}",
+  "port": 6789,
+  "useSsl": false,
+  "username": "nzbget",
+  "password": "{{ nzbget_control_password }}",
+  "musicCategory": "readarr",
+  "recentTvPriority": 0,
+  "olderTvPriority": 0,
+  "addPaused": false
+}','
+',char(10)),'NzbgetSettings',1,'[]',1,1);
+INSERT INTO DownloadClients VALUES(2,1,'deluge-synology','Deluge',replace('{
+  "host": "{{ ansible_default_ipv4.address }}",
+  "port": 8112,
+  "useSsl": false,
+  "password": "{{ deluge_password }}",
+  "musicCategory": "readarr",
+  "recentTvPriority": 0,
+  "olderTvPriority": 0,
+  "addPaused": false
+}','
+',char(10)),'DelugeSettings',1,'[]',1,1);
+COMMIT;

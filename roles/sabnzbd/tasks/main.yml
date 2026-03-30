@@ -1,0 +1,178 @@
+---
+- name: "sabnzbd: check for downloads directory"
+  ansible.builtin.stat:
+    path: /volume1/docker/downloads
+  register: _sabnzbd_download_dir
+  tags:
+    - sabnzbd
+- name: "sabnzbd: check for incomplete-downloads directory"
+  ansible.builtin.stat:
+    path: /volume1/docker/downloads/incomplete
+  register: _sabnzbd_incomplete_download_dir
+  tags:
+    - sabnzbd
+- name: "sabnzbd: check for sabnzbd directory"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/sabnzbd"
+  register: _sabnzbd_config_dir
+  tags:
+    - sabnzbd
+- name: Create directories to house sabnzbd data
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/sabnzbd"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _sabnzbd_config_dir
+  when:
+    - _sabnzbd_config_dir is defined
+    - not _sabnzbd_config_dir.stat.exists
+  tags:
+    - sabnzbd
+- name: Check if sabnzbd is running
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: sabnzbd
+  register: _sabnzbd_state
+  tags:
+    - sabnzbd
+- name: Set NZBGget facts
+  ansible.builtin.set_fact:
+    sabnzbd_port: "{{ sabnzbd_port }}"
+    sabnzbd_download_dir: "{{ _sabnzbd_download_dir }}"
+    sabnzbd_incomplete_download_dir: "{{ _sabnzbd_incomplete_download_dir }}"
+    sabnzbd_config_dir: "{{ _sabnzbd_config_dir }}"
+    sabnzbd_state: "{{ _sabnzbd_state }}"
+    cacheable: true
+  tags:
+    - sabnzbd
+- block:
+    - name: Create sabnzbd container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: sabnzbd
+        image: "{{ sabnzbd_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/sabnzbd:/config"
+          - "{{ container_directory_root }}/downloads:/Downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _sabnzbd_status
+    - name: set sabnzbd_is_running fact
+      ansible.builtin.set_fact:
+        sabnzbd_is_running: "{{ _sabnzbd_status.container.State.Running }}"
+#  default info for linuxserver.io login:sabnzbd, password:tegbzn{{ sabnzbd_port }}
+#    - name: "wait for sabnzbd to come up"
+#      ansible.builtin.uri:
+#       url: "http://sabnzbd:tegbzn{{ sabnzbd_port }}@{{ ansible_default_ipv4.address }}:{{ sabnzbd_port }}"
+#        url: "http://{{ ansible_default_ipv4.address }}:{{ sabnzbd_port }}"
+#        method: GET
+#        status_code: 200
+#      register: _result
+#      until: _result.status == 200
+#      retries: 30  # retry X times
+#      delay: 60  # pause for X sec b/w each call
+    - name: Stop sabnzbd
+      community.docker.docker_container:
+        name: sabnzbd
+        state: stopped
+#   - name: Add sabnzbd.conf
+#     template:
+#       src: sabnzbd.conf.j2
+#       dest: "{{ container_directory_root }}/sabnzbd/sabnzbd.conf"
+#       owner: "{{ user_puid }}"
+#       group: "{{ group_pgid }}"
+#       mode: 0770
+    - name: Start sabnzbd container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: sabnzbd
+        image: "{{ sabnzbd_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/sabnzbd:/config"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _sabnzbd_status
+
+#    - name: "wait for sabnzbd to come up and test with new password"
+#      ansible.builtin.uri:
+#        url: "http://sabnzbd:{{ sabnzbd_control_password }}@{{ ansible_default_ipv4.address }}:{{ sabnzbd_port }}"
+#        method: GET
+#        status_code: 200
+#      register: _result
+#      until: _result.status == 200
+#      retries: 30  # retry X times
+#      delay: 60  # pause for X sec b/w each call
+#  when: not _sabnzbd_state.exists
+#  tags:
+#    - sabnzbd
+  # End Block
+- name: Ensure sabnzbd started
+  block:
+    - name: Restart sabnzbd
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: sabnzbd
+        image: "{{ sabnzbd_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/sabnzbd:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _sabnzbd_status
+    - name: set sabnzbd_is_running fact
+      ansible.builtin.set_fact:
+        sabnzbd_is_running: "{{ _sabnzbd_status.container.State.Running }}"
+#    - name: "wait for sabnzbd to come up and test with new password"
+#      ansible.builtin.uri:
+#        url: "http://sabnzbd:{{ sabnzbd_control_password }}@{{ ansible_default_ipv4.address }}:{{ sabnzbd_port }}"
+#        method: GET
+#        status_code: 200
+#      register: _result
+#      until: _result.status == 200
+#      retries: 30  # retry X times
+#      delay: 60  # pause for X sec b/w each call
+  when: _sabnzbd_state.exists
+  tags:
+    - sabnzbd
+  # end block
+- name: "nbget: print facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "sabnzbd_port: {{ sabnzbd_port }}"
+    - "sabnzbd_config_dir: {{ sabnzbd_config_dir }}"
+    - "sabnzbd_download_dir: {{ sabnzbd_download_dir }}"
+    - "sabnzbd_incomplete_download_dir: {{ sabnzbd_incomplete_download_dir }}"
+    - "sabnzbd_state: {{ sabnzbd_state }}"
+    - "sabnzbd_is_running: {{ sabnzbd_is_running }}"
+  tags:
+    - sabnzbd

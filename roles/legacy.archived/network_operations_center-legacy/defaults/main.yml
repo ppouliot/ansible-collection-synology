@@ -1,0 +1,34 @@
+---
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+
+# roles/synology/tasks/pihole.yml
+pihole_enable: false
+
+# roles/synology/tasks/jenkins_agent.yml
+jenkins_nable: false
+jenkins_agent_enable: false
+
+# roles/synology/tasks/netbox.yml
+netbox_enable: false
+
+# roles/synology/tasks/unifi_poller.yml
+unifi_poller_enable: false
+
+# roles/synology/tasks/unifi_api_browser.yml
+unifi_api_browser_enable: false
+
+# roles/synology/tasks/unifi_event_monitor.yml
+unifi_event_monitor_enable: false
+
+# Pupperware
+# roles/synology/tasks/pupperware.yml
+puppet_pupperware_enable: false
+
+# Organizr
+# roles/synology/tasks/organizr.yml
+organizr_enable: false
+
+# roles/synology/tasks/smokeping.yml
+smokeping_enable: false

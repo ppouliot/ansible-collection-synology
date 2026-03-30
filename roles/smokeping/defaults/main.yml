@@ -1,0 +1,4 @@
+---
+# defaults file for smokeping
+smokeping_port: 8006
+smokeping_container_image: "lscr.io/linuxserver/smokeping:latest"

@@ -1,0 +1,2 @@
+[synology]
+localhost ansible_connection=local

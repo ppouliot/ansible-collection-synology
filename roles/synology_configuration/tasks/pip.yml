@@ -1,0 +1,49 @@
+---
+# Note: DSM 7 ships Python 3.x. The bootstrap URL below works for all current Python 3 versions.
+# This task only runs if synology_pip_upgrade is true (default: false in main role vars).
+
+- name: Check if pip is already installed
+  ansible.builtin.command:
+    cmd: /bin/which pip
+  register: synology_pip_status
+  ignore_errors: true
+  changed_when: false
+
+- name: Retrieve get-pip.py
+  ansible.builtin.get_url:
+    url: https://bootstrap.pypa.io/get-pip.py
+    dest: /volume1/get-pip.py
+    mode: '0770'
+  register: _get_url
+  when: synology_pip_status.rc != 0
+
+- name: Bootstrap pip using system python3
+  ansible.builtin.command:
+    cmd: "/bin/python3 /volume1/get-pip.py"
+  register: _bootstrap_pip
+  changed_when: _bootstrap_pip.rc == 0
+  when: synology_pip_status.rc != 0
+
+- name: Remove stale pip symlink if present
+  ansible.builtin.file:
+    path: /usr/local/bin/pip
+    state: absent
+
+- name: Upgrade pip to latest
+  ansible.builtin.pip:
+    name: pip
+    executable: /bin/pip
+    state: latest
+    extra_args: "-U"
+
+- name: Install/upgrade setuptools
+  ansible.builtin.pip:
+    name: setuptools
+    executable: /bin/pip
+    state: present
+
+- name: Install/upgrade jsondiff
+  ansible.builtin.pip:
+    name: jsondiff
+    executable: /bin/pip
+    state: present

@@ -1,0 +1,9 @@
+---
+
+gluetun_control_port: 8000
+gluetun_vpn_service_provider: "private internet access"
+gluetun_vpnsp_user: abc123
+gluetun_vpnsp_password: abc123
+gluetun_vpnsp_region: US Florida
+gluetun_extra_subnets: "10.0.0.0/8,192.168.0.0/16,172.16.0.0/12"
+

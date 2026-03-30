@@ -1,0 +1,27 @@
+---
+- name: List package sources
+  ppouliot.synology.synology_dsm_api_request:
+    api_name: SYNO.Core.Package.Feed
+    api_method: list
+    request_method: POST
+  register: synology_dsm_package_sources_list
+
+- name: Package sources
+  ppouliot.synology.synology_dsm_api_request:
+    api_name: SYNO.Core.Package.Feed
+    api_method: add
+    request_method: POST
+    api_params:
+      # This value is expected to be double JSON encoded
+      list: '{{ { "name": item.name, "feed": item.feed } | to_json | to_json }}'
+  when: item.name not in (synology_dsm_package_sources_list.json.data['items'] | map(attribute='name'))
+  loop: '{{ synology_dsm_package_sources }}'
+  loop_control:
+    label: '{{ item.name }}'
+
+#- name: List installed packages
+#  ppouliot.synology.synology_dsm_api_request:
+#    api_name: SYNO.Core.Package
+#    api_method: list
+#    api_version: 2
+#  register: synology_dsm_package_list

@@ -1,0 +1,259 @@
+---
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+
+# Options for ansible-synology-dsm
+synology_dsm_api_configuration: true
+synology_dsm_username: bwayne
+synology_dsm_password: P@ssW0rd
+synology_dsm_host: 10.1.1.36
+synology_dsm_nfs_enable: true
+synology_dsm_rsync_enable: true
+synology_dsm_user_home_service_enable: true
+
+# Options for Synology tasks
+
+synology_default_user: synology
+sshkey_url: https://github.com/your_user.keys
+
+# roles/synology/tasks/syno_packages.yml
+synology_manage_packages: false
+synology_package_list:
+  - Virtualization
+  - CMS
+
+# roles/synology/tasks/git.yml
+synology_git_enable: true
+
+# roles/synology/tasks/python.yml
+synology_python_enable: false
+
+# roles/synology/tasks/docker.yml
+synology_docker_enable: false
+
+# roles/synology/tasks/pihole.yml
+synology_pihole_enable: false
+synology_pihole_admin_password: "P!H0l3"
+synology_pihole_web_port: "9000"
+
+# roles/synology/tasks/jenkins.yml
+synology_jenkins_enable: false
+
+# roles/synology/tasks/jenkins_agent.yml
+synology_jenkins_agent_enable: false
+synology_jenkins_sshagent_pubkey:
+
+# roles/synology/tasks/netbox.yml
+synology_netbox_enable: false
+
+# roles/synology/tasks/unifi_poller.yml
+synology_unifi_poller_enable: false
+synology_unifi_poller_influxdb_password: CHANGEME
+synology_unifi_poller_grafana_password: grafanaadmin
+unifi_unifipoller_user: unifipoller
+unifi_unifipoller_user_password: CHANGEME
+unifi_url: https://127.0.0.1:8443
+
+# roles/synology/tasks/unifi_api_browser.yml
+synology_unifi_api_browser_enable: false
+synology_unifi_api_browser_port: 8004
+unifi_api_browser_user: admin
+unifi_api_browser_password: CHANGEME
+
+# roles/synology/tasks/unifi_event_monitor.yml
+synology_unifi_event_monitor_enable: false
+slack_bot_token: your-token-needstogo-here123456789
+slack_channel: gitops
+
+# roles/synology/tasks/synology_notifications.yml
+synology_notifications_enable: true
+slack_webhook_url: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+slack_api_key: xp-591822182080-585520718305-1396945359495-1f4c77979b8feb15c1bb6dce146a0af8
+
+# roles/synology/tasks/synology_monitoring.yml
+synology_monitoring_enable: false
+synology_monitoring_influxdb_server: 192.168.1.1
+
+# Pupperware
+# roles/synology/tasks/pupperware.yml
+synology_pupperware_enable: false
+synology_pupperware_puppetserver_version: 7.2.1
+synology_pupperware_puppetdb_version: 7.5.0
+synology_puppetboard_host_ip:
+# Puppet Container Stack
+pupperware_compose_services_path: "/volume1/docker/pupperware/gem/lib/pupperware/compose-services"
+puppetboard_container_image: "ghcr.io/voxpupuli/puppetboard"
+
+
+# UDI ISY994 Admin Console
+synology_udi_isy994_enable: false
+synology_udi_isy994_address: 192.168.1.1
+
+# UDI Polyglot Node Server
+synology_udi_polyglot_enable: false
+synology_udi_polyglot_port: 3000
+synology_udi_isy994_password: P@ssw0rd
+
+
+# Organizr
+# roles/synology/tasks/organizr.yml
+synology_organizr_enable: false
+organizr_container_image: "organizr/organizr:latest"
+organizr_port: 9983
+
+# roles/synology/tasks/smokeping.yml
+synology_smokeping_enable: false
+synology_smokeping_port: 8006
+smokeping_container_image: "lscr.io/linuxserver/smokeping:latest"
+
+
+# htpc stack
+# roles/synology/tasks/htpc.yml
+container_directory_root: /volume1/docker
+synology_htpc_stack_enable: false
+
+readarr_enable: false
+mylar_enable: false
+
+# Plex
+plex_username: ""
+plex_password: ""
+plex_authtoken: ""
+plex_claim_token: ""
+
+# Sonaar , Radarr , Lidarr Metadata
+# NZBGeek APi Key
+nzbgeek_username: "clarkkent"
+nzbgeek_password: "P@$$w0rd"
+nzbgeek_api_key: "1234567890abcdef1234567890abcdef"
+# OZNzb
+oznzb_api_url: "https://api.oznzb.com"
+oznzb_api_key: "1234567890abcdef1234567890abcdef"
+oznzb_username: "bwayne"
+oznzb_password: "P@ssW0rd"
+# MediaBrowser
+mediabrowser_host: "192.168.1.200"
+mediabrowser_password: "P@ssW0rd"
+
+# NzbHydra2
+nzbhydra2_container_image: "lscr.io/linuxserver/nzbhydra2:latest"
+nzbhydra2_api_key: "7NGDN9NKKK17VEQDC78S5KJVPK"
+
+# Bazarr
+bazarr_container_image: "lscr.io/linuxserver/bazarr:latest"
+deathbycaptcha_username: primeministerp
+deathbycaptcha_password: M0nk3yHaus
+
+
+# Sonaar
+sonarr_container_image: "lscr.io/linuxserver/sonarr:latest"
+sonarr_api_key: ""
+
+# Radarr
+radarr_container_image: "lscr.io/linuxserver/radarr:latest"
+radarr_api_key: ""
+
+# CouchPotato
+enable_couchpotato: false
+couchpotato_container_image: "lscr.io/linuxserver/couchpotato:latest"
+
+
+# Lidarr
+enable_lidarr: false
+lidarr_container_image: "lscr.io/linuxserver/lidarr:latest"
+
+# Headphones
+enable_headphones: false
+headphones_container_image: "lscr.io/linuxserver/headphones:latest"
+headphones_vip_username: ""
+headphones_vip_password: ""
+
+# Mylar
+enable_mylar: false
+mylar_container_image: "lscr.io/linuxserver/mylar:latest"
+
+# Emby
+enable_emby: false
+emby_container_image: "lscr.io/linuxserver/emby:latest"
+
+#Information Below Used in Sonar/Radarr Notifications
+emby_host: "192.168.1.100"
+emby_api_key: "1234567890abcdef1234567890abcdef"
+
+# Embystat
+enable_embystat: false
+embystat_container_image: "lscr.io/linuxserver/embystat:latest"
+
+# Tautulli
+tautulli_container_image: "lscr.io/linuxserver/tautulli:latest"
+tautulli_exposed_port: 8182
+# Gluetun
+gluetun_control_port: 8000
+gluetun_vpn_service_provider: "private internet access"
+gluetun_vpnsp_user: abc123
+gluetun_vpnsp_password: abc123
+gluetun_vpnsp_region: Switzerland
+gluetun_extra_subnets: "10.0.0.0/8,192.168.0.0/16,172.16.0.0/12"
+
+# roles/synology/tasks/nzbget.yml
+
+nzbget_container_image: "lscr.io/linuxserver/nzbget:latest"
+nzbget_control_password: nzbget
+nzbget_api_key: "7NGDN9NKKK17VEQDC78S5KJVPK"
+
+# Easynews Information
+easynews_server1_name: "secure-us.news.easynews.com"
+easynews_server1_port: "443"
+easynews_server1_encryption: "yes"
+easynews_server2_name: "secure.news.easynews.com"
+easynews_server2_port: "443"
+easynews_server2_encryption: "yes"
+easynews_username: "myeasynews"
+easynews_password: "myeasynewspassword"
+easynews_retention_period: "0"
+easynews_connections: "4"
+
+# Deluge
+
+deluge_container_image: "lscr.io/linuxserver/deluge:latest"
+
+# Authentication
+deluge_host_key: "ad98fe3c538842338b1ba3d3ae405941"
+deluge_localclient_password: "aec5b4590a40bc36aebaf0836d0960788fc64028"
+deluge_password_salt: c449b9c280d0f70d86046bf19d57078626e9e5b1
+deluge_password_salted_sha1: 5ab406613a462ec3918ac711e0abb70ec851e4a6
+deluge_password: deluge
+
+# Locations
+deluge_autoadd_location: "/downloads/torrents"
+deluge_geoip_db_location: "/usr/share/GeoIP/GeoIP.dat"
+deluge_download_location: "/downloads"
+deluge_torrentfiles_location: "{{ deluge_download_location }}"
+deluge_plugins_location: "/config/plugins"
+
+# Configuration
+deluge_move_completed: true
+deluge_stop_seed_ratio: "1.0"
+deluge_stop_seed_at_ratio: true
+deluge_remove_seed_at_ratio: true
+deluge_share_ratio_limit: "1.0"
+deluge_dht: false
+deluge_utpex: false
+
+# Jackett
+jackett_container_image: "lscr.io/linuxserver/jackett:latest"
+#jackett_api_key: "inkzri49p02ysobbug5ixowqldjfacaw"
+jackett_api_key: "{{ ansible_facts['jackett_api_key'] }}"
+jackett_admin_password: null
+jackett_instance_id: "3snbx8swst5mzvzxm3bu1anl9svcvmasgispmolnbq8pf2e74e243cz3w9jz75s7"
+jackett_encryption_key: "3snbx8swst5mzvzxm3bu1anl9svcvmasgispmolnbq8pf2e74e243cz3w9jz75s7"
+jackett_blackhole_dir: null
+# http://www.omdbapi.com/
+omdbapi_key: null
+
+# Readarr
+enable_readarr: false
+readarr_container_image: "hotio/readarr:nightly"
+
+# NZBHydara

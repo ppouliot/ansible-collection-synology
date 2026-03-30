@@ -1,0 +1,215 @@
+---
+- name: "Sonarr: Check if Sonarr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/sonarr"
+  register: _sonarr_config_dir
+  tags:
+    - sonarr
+    - sonarr_root
+- name: "Sonarr: Create directories to house sonarr data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/sonarr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _sonarr_config_dir
+  tags:
+    - sonarr
+    - sonarr_root
+  when:
+    - _sonarr_config_dir is defined
+    - not _sonarr_config_dir.stat.exists
+- name: "Sonarr: Check if Sonarr container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: sonarr
+  register: _sonarr_state
+  tags:
+    - sonarr
+- name: "Sonarr: Container installation and configuration block"
+  block:
+    - name: "Sonarr: Create sonarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: sonarr
+        image: "{{ sonarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/sonarr:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/tv:/tv"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _sonarr_status
+    - name: "Sonarr: Set sonarr_is_running fact"
+      ansible.builtin.set_fact:
+        sonarr_is_running: "{{ _sonarr_status.container.State.Running }}"
+    - name: "Sonarr: Wait for Sonarr HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ sonarr_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Sonarr: Stop Sonarr container"
+      community.docker.docker_container:
+        name: sonarr
+        state: stopped
+    - name: "Sonarr: Add sql script SonarrRootFolders.sql"
+      ansible.builtin.template:
+        src: SonarrRootFolders.sql.j2
+        dest: "{{ container_directory_root }}/sonarr/SonarrRootFolders.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Sonarr: import SonarrRootFolders.sql into sonarr.db"
+      ansible.builtin.command:
+        cmd: 'sqlite3 sonarr.db ".read SonarrRootFolders.sql"'
+        chdir: "{{ container_directory_root }}/sonarr"
+      changed_when: true
+    - name: "Sonarr: Add sql script SonarrDownloadClients.sql"
+      ansible.builtin.template:
+        src: SonarrDownloadClients.sql.j2
+        dest: "{{ container_directory_root }}/sonarr/SonarrDownloadClients.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Sonarr: Check for SonarrDownloadClients"
+      ansible.builtin.command:
+        cmd: 'sqlite3 sonarr.db "SELECT Name FROM DownloadClients;"'
+        chdir: "{{ container_directory_root }}/sonarr"
+      register: _sonarr_download_clients
+      changed_when: false
+    - name: "Sonarr: show _sonarr_download_clients"
+      ansible.builtin.debug:
+        msg: "{{ _sonarr_download_clients }}"
+    - name: "Sonarr: import SonarrDownloadClients.sql into sonarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 sonarr.db ".read SonarrDownloadClients.sql"'
+        chdir: "{{ container_directory_root }}/sonarr"
+      when: _sonarr_download_clients.stdout == ""
+      changed_when: true
+    - name: "Sonarr: Add sql script SonarrIndexers.sql"
+      ansible.builtin.template:
+        src: SonarrIndexers.sql.j2
+        dest: "{{ container_directory_root }}/sonarr/SonarrIndexers.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Sonarr: Check for SonarrIndexers"
+      ansible.builtin.command:
+        cmd: 'sqlite3 sonarr.db "SELECT Name FROM Indexers;"'
+        chdir: "{{ container_directory_root }}/sonarr"
+      register: _sonarr_indexers
+      changed_when: false
+    - name: "Sonarr: show _sonarr_indexers"
+      ansible.builtin.debug:
+        msg: "{{ _sonarr_indexers }}"
+    - name: "Sonarr: import SonarrIndexers.sql into sonarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 sonarr.db ".read SonarrIndexers.sql"'
+        chdir: "{{ container_directory_root }}/sonarr"
+      when: _sonarr_indexers.stdout == ""
+      changed_when: true
+    - name: "Sonarr: Add sql script SonarrNotifications.sql"
+      ansible.builtin.template:
+        src: SonarrNotifications.sql.j2
+        dest: "{{ container_directory_root }}/sonarr/SonarrNotifications.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Sonarr: Check for SonarrNotifications"
+      ansible.builtin.command:
+        cmd: 'sqlite3 sonarr.db "SELECT Name FROM Notifications;"'
+        chdir: "{{ container_directory_root }}/sonarr"
+      register: _sonarr_notifications
+      changed_when: false
+    - name: "Sonarr: print _sonarr_notifications"
+      ansible.builtin.debug:
+        msg: "{{ _sonarr_notifications }}"
+    - name: "Sonarr: import SonarrNotifications.sql into sonarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 sonarr.db ".read SonarrNotifications.sql"'
+        chdir: "{{ container_directory_root }}/sonarr"
+      when: _sonarr_notifications.stdout == ""
+      changed_when: true
+    - name: "Sonarr: Start Sonarr container"
+      community.docker.docker_container:
+        name: sonarr
+        state: started
+ # End Block
+  tags:
+    - sonarr
+    - sonarr_install
+  when: not _sonarr_state.exists
+- name: "Sonarr: Container pull and restart"
+  block:
+    - name: "Sonarr: pull and restart sonarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: sonarr
+        image: "{{ sonarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/sonarr:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/tv:/tv"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _sonarr_status
+  when: _sonarr_state.exists
+  tags:
+    - sonarr
+    - sonarr_restart
+- name: "Sonarr: Read Sonarr API key"
+  community.general.xml:
+    path: /volume1/docker/sonarr/config.xml
+    xpath: /Config/ApiKey
+    content: text
+  register: sonarr_xml
+- name: "Sonarr: Set api key variable"
+  ansible.builtin.debug:
+    var: sonarr_xml.matches[0].ApiKey
+- name: "Sonarr: Set Facts"
+  ansible.builtin.set_fact:
+    sonarr_config_dir: "{{ _sonarr_config_dir }}"
+    sonarr_port: "{{ sonarr_port }}"
+    sonarr_api_key: "{{ sonarr_xml.matches[0].ApiKey }}"
+    cacheable: true
+  tags:
+    - sonarr
+    - sonarr_facts
+- name: "Sonarr: Show Facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "sonarr_config_dir: {{ _sonarr_config_dir }}"
+    - "sonarr_port: {{ sonarr_port }}"
+    - "sonarr_api_key {{ sonarr_api_key }}"
+  tags:
+    - sonarr
+    - sonarr_facts
+
+- name: "Sonarr: Re-read local facts"
+  ansible.builtin.setup:
+    filter: ansible_local

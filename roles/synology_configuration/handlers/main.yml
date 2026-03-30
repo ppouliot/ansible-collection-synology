@@ -1,0 +1,18 @@
+---
+
+- name: Restart Docker
+  ansible.builtin.command:
+    # Command Changed from DSM6 to DSM7
+    #cmd: /usr/syno/sbin/synoservice --restart pkgctl-Docker
+    cmd: /usr/syno/bin/synosystemctl restart pkgctl-Docker
+  changed_when: true
+
+- name: Load Tun Driver
+  ansible.builtin.command:
+    cmd: insmod /usr/lib/modules/tun.ko
+  changed_when: true
+
+- name: Restart ContainerManager
+  ansible.builtin.command:
+    cmd: /usr/syno/bin/synosystemctl restart pkg-ContainerManager-dockerd
+  changed_when: true

@@ -1,0 +1,8 @@
+---
+# =============================================================================
+# test_site.yml — top-level integration test
+# Runs bootstrap (DSM API) + configuration (SSH) against [synology] group
+# Usage: ansible-playbook -i inventory_ds218.ini test_site.yml
+#        ansible-playbook -i <any_inventory> test_site.yml
+# =============================================================================
+- import_playbook: site.yml

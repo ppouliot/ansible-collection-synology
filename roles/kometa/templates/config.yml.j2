@@ -1,0 +1,153 @@
+## This file is a template remove the .template to use the file
+
+libraries:                       # This is called out once within the config.yml file
+  Movies:                        # These are names of libraries in your Plex
+    library_type: movie
+    operations:
+      - schedule: daily
+        delete_unmanaged_collections: false 
+    collection_files:
+      - pmm: basic
+      - pmm: imdb
+    remove_overlays: false
+    overlay_files:
+      - pmm: ribbon
+  TV Shows:
+    library_type: show
+    operations:
+      - schedule: daily
+        delete_unmanaged_collections: false 
+    collection_files:
+      - pmm: basic
+      - pmm: imdb
+    remove_overlays: false
+    overlay_files:
+      - pmm: ribbon
+playlist_files:
+  - pmm: playlist                # This is a file within PMM's defaults folder
+settings:
+  run_order:
+  - operations
+  - metadata
+  - collections
+  - overlays
+  cache: true
+  cache_expiration: 60
+  asset_directory: config/assets
+  asset_folders: true
+  asset_depth: 0
+  create_asset_folders: false
+  prioritize_assets: false
+  dimensional_asset_rename: false
+  download_url_assets: false
+  show_missing_season_assets: false
+  show_missing_episode_assets: false
+  show_asset_not_needed: true
+  sync_mode: append
+  minimum_items: 1
+  default_collection_order:
+  delete_below_minimum: true
+  delete_not_scheduled: false
+  run_again_delay: 2
+  missing_only_released: false
+  only_filter_missing: false
+  show_unmanaged: true
+  show_unconfigured: true
+  show_filtered: false
+  show_options: true
+  show_missing: true
+  show_missing_assets: true
+  save_report: false
+  tvdb_language: eng
+  ignore_ids:
+  ignore_imdb_ids:
+  item_refresh_delay: 0
+  playlist_sync_to_user: all
+  playlist_exclude_users:
+  playlist_report: false
+  verify_ssl: true
+  custom_repo:
+  check_nightly: false
+webhooks:                        # Can be individually specified per library as well
+  error:
+  version:
+  run_start:
+  run_end:
+  changes:
+plex:                            # Can be individually specified per library as well; REQUIRED for the script to run
+  url: http://{{ ansible_default_ipv4.address }}:32400
+  token: {{ plex_token }}
+  timeout: 60
+  db_cache:
+  clean_bundles: false
+  empty_trash: false
+  optimize: false
+tmdb:                            # REQUIRED for the script to run
+  apikey: {{ tmdb_api_key }}
+  language: en
+tautulli:                        # Can be individually specified per library as well
+  url: http://{{ ansible_default_ipv4.address }}:{{ tautulli_port }}
+  apikey: {{ tautulli_api_key }}
+github:
+  token: {{ github_access_token }}
+omdb:
+  apikey: {{ omdbapi_key }}
+  cache_expiration: 60
+mdblist:
+  apikey: {{ mdblist_api_key }}
+  cache_expiration: 60
+notifiarr:
+  apikey: {{ notifiarr_api_key }}
+anidb:                           # Not required for AniDB builders unless you want mature content
+  username: {{ anidb_username }}
+  password: {{ anidb_password }}
+radarr:                          # Can be individually specified per library as well
+  url: http://{{ ansible_default_ipv4.address }}:7878
+  token: {{ radarr_api_key }}
+  add_missing: false
+  add_existing: false
+  root_folder_path: /movies
+  monitor: true
+  availability: announced
+  quality_profile: HD-1080p
+  tag:
+  search: false
+  radarr_path:
+  plex_path:
+sonarr:                          # Can be individually specified per library as well
+  url: http://{{ ansible_default_ipv4.address }}:8989
+  token: {{ sonarr_api_key }}
+  add_missing: false
+  add_existing: false
+  root_folder_path: "/tv"
+  monitor: all
+  quality_profile: HD-1080p
+  language_profile: English
+  series_type: standard
+  season_folder: true
+  tag:
+  search: false
+  cutoff_search: false
+  sonarr_path:
+  plex_path:
+trakt:
+  client_id: {{ trakt_client_id }}
+  client_secret: {{ trakt_client_secret }}
+  pin: {{ trakt_pin }}
+  authorization:
+    # everything below is autofilled by the script
+    access_token:
+    token_type:
+    expires_in:
+    refresh_token:
+    scope: public
+    created_at:
+mal:
+  client_id: {{ mal_client_id }}
+  client_secret: {{ mal_client_secret }}
+  authorization:
+    # everything below is autofilled by the script
+    access_token:
+    token_type:
+    expires_in:
+    refresh_token:

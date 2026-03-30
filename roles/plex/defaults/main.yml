@@ -1,0 +1,3 @@
+---
+# defaults file for plex
+plex_container_image: "plexinc/pms-docker:plexpass"

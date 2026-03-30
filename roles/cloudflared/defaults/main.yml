@@ -1,0 +1,9 @@
+---
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+
+# Cloudflared
+cloudflared_container_image: "cloudflare/cloudflared:latest"
+cloudflared_api_token: f4e69f0235cc0765e4b4b810c3a017fd

@@ -1,0 +1,684 @@
+indexers:
+{% if jackett_api_key %}
+- allCapsChecked: true
+  apiKey: "{{ jackett_api_key }}"
+  backend: "NEWZNAB"
+  categoryMapping:
+    anime: 100060
+    audiobook: 100064
+    comic: 100094
+    ebook: null
+    magazine: 100092
+    categories:
+    - id: 1000
+      name: "Console"
+      subCategories:
+      - id: 1010
+        name: "Console/NDS"
+      - id: 1030
+        name: "Console/Wii"
+      - id: 1050
+        name: "Console/XBox 360"
+      - id: 1080
+        name: "Console/PS3"
+      - id: 1090
+        name: "Console/Other"
+    - id: 2000
+      name: "Movies"
+      subCategories:
+      - id: 2010
+        name: "Movies/Foreign"
+      - id: 2030
+        name: "Movies/SD"
+      - id: 2040
+        name: "Movies/HD"
+      - id: 2045
+        name: "Movies/UHD"
+      - id: 2050
+        name: "Movies/BluRay"
+      - id: 2060
+        name: "Movies/3D"
+      - id: 2070
+        name: "Movies/DVD"
+    - id: 3000
+      name: "Audio"
+      subCategories:
+      - id: 3010
+        name: "Audio/MP3"
+      - id: 3020
+        name: "Audio/Video"
+      - id: 3030
+        name: "Audio/Audiobook"
+      - id: 3040
+        name: "Audio/Lossless"
+    - id: 4000
+      name: "PC"
+      subCategories:
+      - id: 4010
+        name: "PC/0day"
+      - id: 4020
+        name: "PC/ISO"
+      - id: 4030
+        name: "PC/Mac"
+      - id: 4040
+        name: "PC/Mobile-Other"
+      - id: 4050
+        name: "PC/Games"
+    - id: 5000
+      name: "TV"
+      subCategories:
+      - id: 5010
+        name: "TV/WEB-DL"
+      - id: 5020
+        name: "TV/Foreign"
+      - id: 5030
+        name: "TV/SD"
+      - id: 5040
+        name: "TV/HD"
+      - id: 5060
+        name: "TV/Sport"
+      - id: 5070
+        name: "TV/Anime"
+      - id: 5080
+        name: "TV/Documentary"
+    - id: 6000
+      name: "XXX"
+      subCategories:
+      - id: 6050
+        name: "XXX/Pack"
+      - id: 6060
+        name: "XXX/ImageSet"
+      - id: 6070
+        name: "XXX/Other"
+    - id: 7000
+      name: "Books"
+      subCategories:
+      - id: 7010
+        name: "Books/Mags"
+      - id: 7030
+        name: "Books/Comics"
+      - id: 7050
+        name: "Books/Other"
+    - id: 8000
+      name: "Other"
+      subCategories: []
+    - id: 100060
+      name: "Anime"
+      subCategories: []
+    - id: 100001
+      name: "Appz"
+      subCategories: []
+    - id: 100069
+      name: "Appz/Mac"
+      subCategories: []
+    - id: 100058
+      name: "Appz/Mobile"
+      subCategories: []
+    - id: 100086
+      name: "Appz/Non-English"
+      subCategories: []
+    - id: 100064
+      name: "AudioBook"
+      subCategories: []
+    - id: 100035
+      name: "Books"
+      subCategories: []
+    - id: 100094
+      name: "Books/Comics"
+      subCategories: []
+    - id: 100095
+      name: "Books/Educational"
+      subCategories: []
+    - id: 100092
+      name: "Books/Magazines & Newspapers"
+      subCategories: []
+    - id: 100074
+      name: "Games"
+      subCategories: []
+    - id: 100002
+      name: "Games/Mixed"
+      subCategories: []
+    - id: 100047
+      name: "Games/Nintendo DS"
+      subCategories: []
+    - id: 100043
+      name: "Games/PC-ISO"
+      subCategories: []
+    - id: 100045
+      name: "Games/PC-Rip"
+      subCategories: []
+    - id: 100071
+      name: "Games/PS3"
+      subCategories: []
+    - id: 100050
+      name: "Games/Wii"
+      subCategories: []
+    - id: 100044
+      name: "Games/Xbox-360"
+      subCategories: []
+    - id: 100087
+      name: "Movie/3D"
+      subCategories: []
+    - id: 100077
+      name: "Movie/480p"
+      subCategories: []
+    - id: 100101
+      name: "Movie/4K"
+      subCategories: []
+    - id: 100089
+      name: "Movie/BD-R"
+      subCategories: []
+    - id: 100090
+      name: "Movie/BD-Rip"
+      subCategories: []
+    - id: 100096
+      name: "Movie/Cam"
+      subCategories: []
+    - id: 100006
+      name: "Movie/DVD-R"
+      subCategories: []
+    - id: 100048
+      name: "Movie/HD/Bluray"
+      subCategories: []
+    - id: 100054
+      name: "Movie/Kids"
+      subCategories: []
+    - id: 100062
+      name: "Movie/MP4"
+      subCategories: []
+    - id: 100038
+      name: "Movie/Non-English"
+      subCategories: []
+    - id: 100068
+      name: "Movie/Packs"
+      subCategories: []
+    - id: 100020
+      name: "Movie/Web-DL"
+      subCategories: []
+    - id: 100100
+      name: "Movie/x265"
+      subCategories: []
+    - id: 100007
+      name: "Movie/Xvid"
+      subCategories: []
+    - id: 100072
+      name: "Movies"
+      subCategories: []
+    - id: 100075
+      name: "Music"
+      subCategories: []
+    - id: 100003
+      name: "Music/Audio"
+      subCategories: []
+    - id: 100080
+      name: "Music/Flac"
+      subCategories: []
+    - id: 100093
+      name: "Music/Packs"
+      subCategories: []
+    - id: 100037
+      name: "Music/Video"
+      subCategories: []
+    - id: 100098
+      name: "Other/Fonts"
+      subCategories: []
+    - id: 100076
+      name: "Other/Miscellaneous"
+      subCategories: []
+    - id: 100036
+      name: "Other/Pics/Wallpapers"
+      subCategories: []
+    - id: 100021
+      name: "Podcast"
+      subCategories: []
+    - id: 100055
+      name: "Sports"
+      subCategories: []
+    - id: 100073
+      name: "TV"
+      subCategories: []
+    - id: 100078
+      name: "TV/480p"
+      subCategories: []
+    - id: 100023
+      name: "TV/BD"
+      subCategories: []
+    - id: 100026
+      name: "TV/Documentaries"
+      subCategories: []
+    - id: 100024
+      name: "TV/DVD-R"
+      subCategories: []
+    - id: 100025
+      name: "TV/DVD-Rip"
+      subCategories: []
+    - id: 100066
+      name: "TV/Mobile"
+      subCategories: []
+    - id: 100082
+      name: "TV/Non-English"
+      subCategories: []
+    - id: 100065
+      name: "TV/Packs"
+      subCategories: []
+    - id: 100083
+      name: "TV/Packs/Non-English"
+      subCategories: []
+    - id: 100079
+      name: "TV/SD/x264"
+      subCategories: []
+    - id: 100022
+      name: "TV/Web-DL"
+      subCategories: []
+    - id: 100005
+      name: "TV/x264"
+      subCategories: []
+    - id: 100099
+      name: "TV/x265"
+      subCategories: []
+    - id: 100004
+      name: "TV/Xvid"
+      subCategories: []
+    - id: 100088
+      name: "XXX"
+      subCategories: []
+    - id: 100085
+      name: "XXX/Magazines"
+      subCategories: []
+    - id: 100008
+      name: "XXX/Movie"
+      subCategories: []
+    - id: 100081
+      name: "XXX/Movie/0Day"
+      subCategories: []
+    - id: 100091
+      name: "XXX/Packs"
+      subCategories: []
+    - id: 100084
+      name: "XXX/Pics/Wallpapers"
+      subCategories: []
+  color: null
+  configComplete: true
+  enabledCategories: []
+  downloadLimit: null
+  state: "ENABLED"
+  enabledForSearchSource: "BOTH"
+  generalMinSize: null
+  hitLimit: null
+  hitLimitResetTime: 0
+  host: "http://{{ ansible_default_ipv4.address }}:9117/api/v2.0/indexers/iptorrents/results/torznab"
+  lastError: null
+  disabledUntil: null
+  disabledLevel: 0
+  disabledAt: null
+  loadLimitOnRandom: null
+  minSeeders: null
+  name: "Jackett-IPTorrents"
+  password: null
+  customParameters: []
+  preselect: true
+  schedule: []
+  score: 0
+  searchModuleType: "TORZNAB"
+  showOnSearch: true
+  supportedSearchIds:
+  - "IMDB"
+  supportedSearchTypes:
+  - "SEARCH"
+  - "AUDIO"
+  - "TVSEARCH"
+  - "MOVIE"
+  - "BOOK"
+  timeout: null
+  username: null
+  userAgent: null
+  vipExpirationDate: null
+{% endif %}
+{% if nzbgeek_api_key %}
+- allCapsChecked: true
+  apiKey: "{{ nzbgeek_api_key }}"
+  backend: "NEWZNAB"
+  categoryMapping:
+    anime: 5070
+    audiobook: 3030
+    comic: 7030
+    ebook: 7020
+    magazine: 7010
+    categories:
+    - id: 1000
+      name: "Console"
+      subCategories:
+      - id: 1010
+        name: "NDS"
+      - id: 1020
+        name: "PSP"
+      - id: 1030
+        name: "Wii"
+      - id: 1040
+        name: "Xbox"
+      - id: 1050
+        name: "Xbox 360"
+      - id: 1060
+        name: "WiiWare/VC"
+      - id: 1070
+        name: "XBOX 360 DLC"
+      - id: 1080
+        name: "PS3"
+      - id: 1090
+        name: "Xbox One"
+      - id: 1100
+        name: "PS4"
+      - id: 1110
+        name: "NSW"
+    - id: 2000
+      name: "Movies"
+      subCategories:
+      - id: 2010
+        name: "Foreign"
+      - id: 2020
+        name: "Other"
+      - id: 2030
+        name: "SD"
+      - id: 2040
+        name: "HD"
+      - id: 2045
+        name: "UHD"
+      - id: 2050
+        name: "BluRay"
+      - id: 2060
+        name: "3D"
+    - id: 3000
+      name: "Audio"
+      subCategories:
+      - id: 3010
+        name: "MP3"
+      - id: 3020
+        name: "Video"
+      - id: 3030
+        name: "Audiobook"
+      - id: 3040
+        name: "Lossless"
+    - id: 4000
+      name: "PC"
+      subCategories:
+      - id: 4010
+        name: "0day"
+      - id: 4020
+        name: "ISO"
+      - id: 4030
+        name: "Mac"
+      - id: 4040
+        name: "Mobile-Other"
+      - id: 4050
+        name: "Games"
+      - id: 4060
+        name: "Mobile-iOS"
+      - id: 4070
+        name: "Mobile-Android"
+    - id: 5000
+      name: "TV"
+      subCategories:
+      - id: 5020
+        name: "Foreign"
+      - id: 5030
+        name: "SD"
+      - id: 5040
+        name: "HD"
+      - id: 5045
+        name: "UHD"
+      - id: 5050
+        name: "Other"
+      - id: 5060
+        name: "Sport"
+      - id: 5070
+        name: "Anime"
+      - id: 5080
+        name: "Documentary"
+    - id: 6000
+      name: "XXX"
+      subCategories:
+      - id: 6010
+        name: "DVD"
+      - id: 6020
+        name: "WMV"
+      - id: 6030
+        name: "XviD"
+      - id: 6040
+        name: "x264"
+      - id: 6050
+        name: "Pack"
+      - id: 6060
+        name: "ImgSet"
+      - id: 6070
+        name: "Other"
+    - id: 7000
+      name: "Books"
+      subCategories:
+      - id: 7010
+        name: "Mags"
+      - id: 7020
+        name: "Ebook"
+      - id: 7030
+        name: "Comics"
+    - id: 8000
+      name: "Other"
+      subCategories:
+      - id: 8010
+        name: "Misc"
+  color: null
+  configComplete: true
+  enabledCategories: []
+  downloadLimit: null
+  state: "DISABLED_SYSTEM"
+  enabledForSearchSource: "BOTH"
+  generalMinSize: null
+  hitLimit: null
+  hitLimitResetTime: 0
+  host: "https://api.nzbgeek.info"
+  lastError: "Indexer refused authentication. Error code: 100. Description: Invalid\
+    \ API Key"
+  disabledUntil: null
+  disabledLevel:
+  disabledAt: "Sun, 28 Nov 2021 20:06:15 +0000"
+  loadLimitOnRandom: null
+  minSeeders: null
+  name: "NZBGeek"
+  password: null
+  customParameters: []
+  preselect: true
+  schedule: []
+  score: 0
+  searchModuleType: "NEWZNAB"
+  showOnSearch: true
+  supportedSearchIds:
+  - "IMDB"
+  - "TVDB"
+  - "TVRAGE"
+  supportedSearchTypes:
+  - "TVSEARCH"
+  - "MOVIE"
+  - "AUDIO"
+  timeout: null
+  username: null
+  userAgent: null
+  vipExpirationDate: null
+{% endif %}
+{% if oznzb_api_key %}
+- allCapsChecked: false
+  apiKey: "{{ oznzb_api_key }}"
+  backend: "NEWZNAB"
+  categoryMapping:
+    anime: 5070
+    audiobook: 3030
+    comic: 7030
+    ebook: 7020
+    magazine: 7010
+    categories:
+    - id: 1000
+      name: "Console"
+      subCategories:
+      - id: 1010
+        name: "NDS"
+      - id: 1080
+        name: "PS3"
+      - id: 1100
+        name: "PS4"
+      - id: 1020
+        name: "PSP"
+      - id: 1030
+        name: "Wii"
+      - id: 1060
+        name: "WiiWare/VC"
+      - id: 1070
+        name: "XBOX 360 DLC"
+      - id: 1040
+        name: "Xbox"
+      - id: 1050
+        name: "Xbox 360"
+      - id: 1090
+        name: "Xbox One"
+    - id: 2000
+      name: "Movies"
+      subCategories:
+      - id: 2060
+        name: "3D"
+      - id: 2050
+        name: "BluRay"
+      - id: 2040
+        name: "HD"
+      - id: 2020
+        name: "Other"
+      - id: 2030
+        name: "SD"
+      - id: 2045
+        name: "UHD"
+    - id: 3000
+      name: "Audio"
+      subCategories:
+      - id: 3030
+        name: "Audiobook"
+      - id: 3040
+        name: "Lossless"
+      - id: 3010
+        name: "MP3"
+      - id: 3020
+        name: "Video"
+    - id: 4000
+      name: "PC"
+      subCategories:
+      - id: 4010
+        name: "0day"
+      - id: 4050
+        name: "Games"
+      - id: 4020
+        name: "ISO"
+      - id: 4030
+        name: "Mac"
+      - id: 4070
+        name: "Mobile-Android"
+      - id: 4040
+        name: "Mobile-Other"
+      - id: 4060
+        name: "Mobile-iOS"
+    - id: 5000
+      name: "TV"
+      subCategories:
+      - id: 5070
+        name: "Anime"
+      - id: 5080
+        name: "Documentary"
+      - id: 5040
+        name: "HD"
+      - id: 5050
+        name: "Other"
+      - id: 5030
+        name: "SD"
+      - id: 5060
+        name: "Sport"
+      - id: 5045
+        name: "UHD"
+    - id: 6000
+      name: "XXX"
+      subCategories:
+      - id: 6010
+        name: "DVD"
+      - id: 6060
+        name: "ImgSet"
+      - id: 6070
+        name: "Other"
+      - id: 6050
+        name: "Pack"
+      - id: 6020
+        name: "WMV"
+      - id: 6030
+        name: "XviD"
+      - id: 6040
+        name: "x264"
+    - id: 7000
+      name: "Books"
+      subCategories:
+      - id: 7030
+        name: "Comics"
+      - id: 7020
+        name: "Ebook"
+      - id: 7010
+        name: "Mags"
+    - id: 8000
+      name: "Misc"
+      subCategories:
+      - id: 8010
+        name: "Other"
+  color: null
+  configComplete: true
+  enabledCategories:
+  - "Anime"
+  - "Audio"
+  - "Audiobook"
+  - "Comic"
+  - "Console"
+  - "Ebook"
+  - "FLAC"
+  - "MP3"
+  - "Movies"
+  - "Movies HD"
+  - "Movies SD"
+  - "PC"
+  - "TV"
+  - "TV HD"
+  - "TV SD"
+  - "XXX"
+  downloadLimit: null
+  state: "ENABLED"
+  enabledForSearchSource: "BOTH"
+  generalMinSize: null
+  hitLimit: null
+  hitLimitResetTime: 0
+  host: "{{ oznzb_api_url }}"
+  lastError: null
+  disabledUntil: null
+  disabledLevel: 1
+  disabledAt: "Mon, 29 Nov 2021 20:07:01 +0000"
+  loadLimitOnRandom: null
+  minSeeders: null
+  name: "OZNzb.com"
+  password: null
+  customParameters: []
+  preselect: true
+  schedule: []
+  score: 0
+  searchModuleType: "NEWZNAB"
+  showOnSearch: true
+  supportedSearchIds:
+  - "TVRAGE"
+  - "TVMAZE"
+  - "TVDB"
+  - "IMDB"
+  supportedSearchTypes:
+  - "TVSEARCH"
+  - "MOVIE"
+  - "AUDIO"
+  timeout: null
+  username: null
+  userAgent: null
+  vipExpirationDate: null
+{% endif %}

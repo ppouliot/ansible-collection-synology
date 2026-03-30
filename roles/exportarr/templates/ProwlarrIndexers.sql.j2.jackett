@@ -1,0 +1,816 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE IF NOT EXISTS "Indexers" ("Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Name" TEXT NOT NULL, "Implementation" TEXT NOT NULL, "Settings" TEXT, "ConfigContract" TEXT, "Enable" INTEGER, "Priority" INTEGER NOT NULL, "Added" DATETIME NOT NULL, "Redirect" INTEGER NOT NULL, "AppProfileId" INTEGER NOT NULL, "Tags" TEXT, "DownloadClientId" INTEGER NOT NULL);
+INSERT INTO Indexers VALUES(1,'Headphones VIP','Headphones',replace('{
+  "apiPath": "/api",
+  "apiKey": "964d601959918a578a670984bdee9357",
+  "baseUrl": "https://indexer.codeshy.com",
+  "username": "{{ headphones_vip_username }}",
+  "password": "{{ headphones_vip_password }}",
+  "baseSettings": {
+    "limitsUnit": 0
+  }
+}','
+',char(10)),'HeadphonesSettings',1,25,'2024-06-06 15:53:45.8210763Z',0,1,'[]',0);
+INSERT INTO Indexers VALUES(2,'Jackett-Torznab','Torznab',replace('{
+  "torrentBaseSettings": {},
+  "baseUrl": "http://{{ ansible_default_ipv4.address }}:9117/api/v2.0/indexers/iptorrents/results/torznab/",
+  "apiPath": "/api",
+  "apiKey": "{{ jackett_api_key }}",
+  "vipExpiration": "",
+  "baseSettings": {
+    "limitsUnit": 0
+  },
+  "capabilities": {
+    "supportsRawSearch": false,
+    "searchParams": [
+      "q"
+    ],
+    "tvSearchParams": [
+      "q",
+      "season",
+      "ep",
+      "imdbId",
+      "genre"
+    ],
+    "movieSearchParams": [
+      "q",
+      "imdbId",
+      "genre"
+    ],
+    "musicSearchParams": [
+      "q"
+    ],
+    "bookSearchParams": [
+      "q"
+    ],
+    "categories": [
+      {
+        "id": 1000,
+        "name": "Console",
+        "subCategories": []
+      },
+      {
+        "id": 1030,
+        "name": "Console/Wii",
+        "subCategories": []
+      },
+      {
+        "id": 1040,
+        "name": "Console/XBox",
+        "subCategories": []
+      },
+      {
+        "id": 1090,
+        "name": "Console/Other",
+        "subCategories": []
+      },
+      {
+        "id": 1180,
+        "name": "Console/PS4",
+        "subCategories": []
+      },
+      {
+        "id": 101030,
+        "name": "Console/Console/Wii",
+        "subCategories": []
+      },
+      {
+        "id": 101040,
+        "name": "Console/Console/XBox",
+        "subCategories": []
+      },
+      {
+        "id": 101090,
+        "name": "Console/Console/Other",
+        "subCategories": []
+      },
+      {
+        "id": 101180,
+        "name": "Console/Console/PS4",
+        "subCategories": []
+      },
+      {
+        "id": 101000,
+        "name": "Console",
+        "subCategories": []
+      },
+      {
+        "id": 2000,
+        "name": "Movies",
+        "subCategories": []
+      },
+      {
+        "id": 2010,
+        "name": "Movies/Foreign",
+        "subCategories": []
+      },
+      {
+        "id": 2030,
+        "name": "Movies/SD",
+        "subCategories": []
+      },
+      {
+        "id": 2040,
+        "name": "Movies/HD",
+        "subCategories": []
+      },
+      {
+        "id": 2045,
+        "name": "Movies/UHD",
+        "subCategories": []
+      },
+      {
+        "id": 2050,
+        "name": "Movies/BluRay",
+        "subCategories": []
+      },
+      {
+        "id": 2060,
+        "name": "Movies/3D",
+        "subCategories": []
+      },
+      {
+        "id": 2070,
+        "name": "Movies/DVD",
+        "subCategories": []
+      },
+      {
+        "id": 2080,
+        "name": "Movies/WEB-DL",
+        "subCategories": []
+      },
+      {
+        "id": 102010,
+        "name": "Movies/Movies/Foreign",
+        "subCategories": []
+      },
+      {
+        "id": 102030,
+        "name": "Movies/Movies/SD",
+        "subCategories": []
+      },
+      {
+        "id": 102040,
+        "name": "Movies/Movies/HD",
+        "subCategories": []
+      },
+      {
+        "id": 102045,
+        "name": "Movies/Movies/UHD",
+        "subCategories": []
+      },
+      {
+        "id": 102050,
+        "name": "Movies/Movies/BluRay",
+        "subCategories": []
+      },
+      {
+        "id": 102060,
+        "name": "Movies/Movies/3D",
+        "subCategories": []
+      },
+      {
+        "id": 102070,
+        "name": "Movies/Movies/DVD",
+        "subCategories": []
+      },
+      {
+        "id": 102080,
+        "name": "Movies/Movies/WEB-DL",
+        "subCategories": []
+      },
+      {
+        "id": 102000,
+        "name": "Movies",
+        "subCategories": []
+      },
+      {
+        "id": 3000,
+        "name": "Audio",
+        "subCategories": []
+      },
+      {
+        "id": 3010,
+        "name": "Audio/MP3",
+        "subCategories": []
+      },
+      {
+        "id": 3020,
+        "name": "Audio/Video",
+        "subCategories": []
+      },
+      {
+        "id": 3030,
+        "name": "Audio/Audiobook",
+        "subCategories": []
+      },
+      {
+        "id": 3040,
+        "name": "Audio/Lossless",
+        "subCategories": []
+      },
+      {
+        "id": 3050,
+        "name": "Audio/Other",
+        "subCategories": []
+      },
+      {
+        "id": 103010,
+        "name": "Audio/Audio/MP3",
+        "subCategories": []
+      },
+      {
+        "id": 103020,
+        "name": "Audio/Audio/Video",
+        "subCategories": []
+      },
+      {
+        "id": 103030,
+        "name": "Audio/Audio/Audiobook",
+        "subCategories": []
+      },
+      {
+        "id": 103040,
+        "name": "Audio/Audio/Lossless",
+        "subCategories": []
+      },
+      {
+        "id": 103050,
+        "name": "Audio/Audio/Other",
+        "subCategories": []
+      },
+      {
+        "id": 103000,
+        "name": "Audio",
+        "subCategories": []
+      },
+      {
+        "id": 4000,
+        "name": "PC",
+        "subCategories": []
+      },
+      {
+        "id": 4010,
+        "name": "PC/0day",
+        "subCategories": []
+      },
+      {
+        "id": 4030,
+        "name": "PC/Mac",
+        "subCategories": []
+      },
+      {
+        "id": 4040,
+        "name": "PC/Mobile-Other",
+        "subCategories": []
+      },
+      {
+        "id": 4050,
+        "name": "PC/Games",
+        "subCategories": []
+      },
+      {
+        "id": 104010,
+        "name": "PC/PC/0day",
+        "subCategories": []
+      },
+      {
+        "id": 104030,
+        "name": "PC/PC/Mac",
+        "subCategories": []
+      },
+      {
+        "id": 104040,
+        "name": "PC/PC/Mobile-Other",
+        "subCategories": []
+      },
+      {
+        "id": 104050,
+        "name": "PC/PC/Games",
+        "subCategories": []
+      },
+      {
+        "id": 104000,
+        "name": "PC",
+        "subCategories": []
+      },
+      {
+        "id": 5000,
+        "name": "TV",
+        "subCategories": []
+      },
+      {
+        "id": 5010,
+        "name": "TV/WEB-DL",
+        "subCategories": []
+      },
+      {
+        "id": 5020,
+        "name": "TV/Foreign",
+        "subCategories": []
+      },
+      {
+        "id": 5030,
+        "name": "TV/SD",
+        "subCategories": []
+      },
+      {
+        "id": 5040,
+        "name": "TV/HD",
+        "subCategories": []
+      },
+      {
+        "id": 5060,
+        "name": "TV/Sport",
+        "subCategories": []
+      },
+      {
+        "id": 5070,
+        "name": "TV/Anime",
+        "subCategories": []
+      },
+      {
+        "id": 5080,
+        "name": "TV/Documentary",
+        "subCategories": []
+      },
+      {
+        "id": 105010,
+        "name": "TV/TV/WEB-DL",
+        "subCategories": []
+      },
+      {
+        "id": 105020,
+        "name": "TV/TV/Foreign",
+        "subCategories": []
+      },
+      {
+        "id": 105030,
+        "name": "TV/TV/SD",
+        "subCategories": []
+      },
+      {
+        "id": 105040,
+        "name": "TV/TV/HD",
+        "subCategories": []
+      },
+      {
+        "id": 105060,
+        "name": "TV/TV/Sport",
+        "subCategories": []
+      },
+      {
+        "id": 105070,
+        "name": "TV/TV/Anime",
+        "subCategories": []
+      },
+      {
+        "id": 105080,
+        "name": "TV/TV/Documentary",
+        "subCategories": []
+      },
+      {
+        "id": 105000,
+        "name": "TV",
+        "subCategories": []
+      },
+      {
+        "id": 6000,
+        "name": "XXX",
+        "subCategories": []
+      },
+      {
+        "id": 6050,
+        "name": "XXX/Pack",
+        "subCategories": []
+      },
+      {
+        "id": 6060,
+        "name": "XXX/ImageSet",
+        "subCategories": []
+      },
+      {
+        "id": 6070,
+        "name": "XXX/Other",
+        "subCategories": []
+      },
+      {
+        "id": 106050,
+        "name": "XXX/XXX/Pack",
+        "subCategories": []
+      },
+      {
+        "id": 106060,
+        "name": "XXX/XXX/ImageSet",
+        "subCategories": []
+      },
+      {
+        "id": 106070,
+        "name": "XXX/XXX/Other",
+        "subCategories": []
+      },
+      {
+        "id": 106000,
+        "name": "XXX",
+        "subCategories": []
+      },
+      {
+        "id": 7000,
+        "name": "Books",
+        "subCategories": []
+      },
+      {
+        "id": 7010,
+        "name": "Books/Mags",
+        "subCategories": []
+      },
+      {
+        "id": 7030,
+        "name": "Books/Comics",
+        "subCategories": []
+      },
+      {
+        "id": 7050,
+        "name": "Books/Other",
+        "subCategories": []
+      },
+      {
+        "id": 107010,
+        "name": "Books/Books/Mags",
+        "subCategories": []
+      },
+      {
+        "id": 107030,
+        "name": "Books/Books/Comics",
+        "subCategories": []
+      },
+      {
+        "id": 107050,
+        "name": "Books/Books/Other",
+        "subCategories": []
+      },
+      {
+        "id": 107000,
+        "name": "Books",
+        "subCategories": []
+      },
+      {
+        "id": 0,
+        "name": "Other",
+        "subCategories": []
+      },
+      {
+        "id": 108000,
+        "name": "Other",
+        "subCategories": []
+      },
+      {
+        "id": 8000,
+        "name": "Other",
+        "subCategories": []
+      },
+      {
+        "id": 200060,
+        "name": "Anime",
+        "subCategories": []
+      },
+      {
+        "id": 200001,
+        "name": "Appz",
+        "subCategories": []
+      },
+      {
+        "id": 200086,
+        "name": "Appz/Non-English",
+        "subCategories": []
+      },
+      {
+        "id": 200064,
+        "name": "AudioBook",
+        "subCategories": []
+      },
+      {
+        "id": 200035,
+        "name": "Books",
+        "subCategories": []
+      },
+      {
+        "id": 200102,
+        "name": "Books/Non-English",
+        "subCategories": []
+      },
+      {
+        "id": 200094,
+        "name": "Comics",
+        "subCategories": []
+      },
+      {
+        "id": 200095,
+        "name": "Educational",
+        "subCategories": []
+      },
+      {
+        "id": 200098,
+        "name": "Fonts",
+        "subCategories": []
+      },
+      {
+        "id": 200074,
+        "name": "Games",
+        "subCategories": []
+      },
+      {
+        "id": 200002,
+        "name": "Games/Mixed",
+        "subCategories": []
+      },
+      {
+        "id": 200047,
+        "name": "Games/Nintendo",
+        "subCategories": []
+      },
+      {
+        "id": 200043,
+        "name": "Games/PC-ISO",
+        "subCategories": []
+      },
+      {
+        "id": 200045,
+        "name": "Games/PC-Rip",
+        "subCategories": []
+      },
+      {
+        "id": 200071,
+        "name": "Games/Playstation",
+        "subCategories": []
+      },
+      {
+        "id": 200050,
+        "name": "Games/Wii",
+        "subCategories": []
+      },
+      {
+        "id": 200044,
+        "name": "Games/Xbox",
+        "subCategories": []
+      },
+      {
+        "id": 200069,
+        "name": "Mac",
+        "subCategories": []
+      },
+      {
+        "id": 200092,
+        "name": "Magazines / Newspapers",
+        "subCategories": []
+      },
+      {
+        "id": 200076,
+        "name": "Miscellaneous",
+        "subCategories": []
+      },
+      {
+        "id": 200058,
+        "name": "Mobile",
+        "subCategories": []
+      },
+      {
+        "id": 200087,
+        "name": "Movie/3D",
+        "subCategories": []
+      },
+      {
+        "id": 200077,
+        "name": "Movie/480p",
+        "subCategories": []
+      },
+      {
+        "id": 200101,
+        "name": "Movie/4K",
+        "subCategories": []
+      },
+      {
+        "id": 200089,
+        "name": "Movie/BD-R",
+        "subCategories": []
+      },
+      {
+        "id": 200090,
+        "name": "Movie/BD-Rip",
+        "subCategories": []
+      },
+      {
+        "id": 200096,
+        "name": "Movie/Cam",
+        "subCategories": []
+      },
+      {
+        "id": 200006,
+        "name": "Movie/DVD-R",
+        "subCategories": []
+      },
+      {
+        "id": 200048,
+        "name": "Movie/HD/Bluray",
+        "subCategories": []
+      },
+      {
+        "id": 200054,
+        "name": "Movie/Kids",
+        "subCategories": []
+      },
+      {
+        "id": 200062,
+        "name": "Movie/MP4",
+        "subCategories": []
+      },
+      {
+        "id": 200038,
+        "name": "Movie/Non-English",
+        "subCategories": []
+      },
+      {
+        "id": 200068,
+        "name": "Movie/Packs",
+        "subCategories": []
+      },
+      {
+        "id": 200020,
+        "name": "Movie/Web-DL",
+        "subCategories": []
+      },
+      {
+        "id": 200100,
+        "name": "Movie/x265",
+        "subCategories": []
+      },
+      {
+        "id": 200007,
+        "name": "Movie/Xvid",
+        "subCategories": []
+      },
+      {
+        "id": 200072,
+        "name": "Movies",
+        "subCategories": []
+      },
+      {
+        "id": 200075,
+        "name": "Music",
+        "subCategories": []
+      },
+      {
+        "id": 200003,
+        "name": "Music/Audio",
+        "subCategories": []
+      },
+      {
+        "id": 200080,
+        "name": "Music/Flac",
+        "subCategories": []
+      },
+      {
+        "id": 200093,
+        "name": "Music/Packs",
+        "subCategories": []
+      },
+      {
+        "id": 200037,
+        "name": "Music/Video",
+        "subCategories": []
+      },
+      {
+        "id": 200036,
+        "name": "Pics/Wallpapers",
+        "subCategories": []
+      },
+      {
+        "id": 200021,
+        "name": "Podcast",
+        "subCategories": []
+      },
+      {
+        "id": 200055,
+        "name": "Sports",
+        "subCategories": []
+      },
+      {
+        "id": 200073,
+        "name": "TV",
+        "subCategories": []
+      },
+      {
+        "id": 200078,
+        "name": "TV/480p",
+        "subCategories": []
+      },
+      {
+        "id": 200023,
+        "name": "TV/BD",
+        "subCategories": []
+      },
+      {
+        "id": 200026,
+        "name": "TV/Documentaries",
+        "subCategories": []
+      },
+      {
+        "id": 200024,
+        "name": "TV/DVD-R",
+        "subCategories": []
+      },
+      {
+        "id": 200025,
+        "name": "TV/DVD-Rip",
+        "subCategories": []
+      },
+      {
+        "id": 200066,
+        "name": "TV/Mobile",
+        "subCategories": []
+      },
+      {
+        "id": 200082,
+        "name": "TV/Non-English",
+        "subCategories": []
+      },
+      {
+        "id": 200065,
+        "name": "TV/Packs",
+        "subCategories": []
+      },
+      {
+        "id": 200083,
+        "name": "TV/Packs/Non-English",
+        "subCategories": []
+      },
+      {
+        "id": 200079,
+        "name": "TV/SD/x264",
+        "subCategories": []
+      },
+      {
+        "id": 200022,
+        "name": "TV/Web-DL",
+        "subCategories": []
+      },
+      {
+        "id": 200005,
+        "name": "TV/x264",
+        "subCategories": []
+      },
+      {
+        "id": 200099,
+        "name": "TV/x265",
+        "subCategories": []
+      },
+      {
+        "id": 200004,
+        "name": "TV/Xvid",
+        "subCategories": []
+      },
+      {
+        "id": 200088,
+        "name": "XXX",
+        "subCategories": []
+      },
+      {
+        "id": 200085,
+        "name": "XXX/Magazines",
+        "subCategories": []
+      },
+      {
+        "id": 200008,
+        "name": "XXX/Movie",
+        "subCategories": []
+      },
+      {
+        "id": 200081,
+        "name": "XXX/Movie/0Day",
+        "subCategories": []
+      },
+      {
+        "id": 200091,
+        "name": "XXX/Packs",
+        "subCategories": []
+      },
+      {
+        "id": 200084,
+        "name": "XXX/Pics/Wallpapers",
+        "subCategories": []
+      }
+    ]
+  }
+}','
+',char(10)),'TorznabSettings',1,25,'2024-06-06 19:14:23.2142434Z',0,1,'[]',0);
+INSERT INTO Indexers VALUES(3,'Jackett-TorrentRSSFeed','TorrentRssIndexer',replace('{
+  "baseUrl": "http://{{ ansible_default_ipv4.address }}:9117/api/v2.0/indexers/iptorrents/results/torznab/api?apikey={{ jackett_api_key }}\u0026t=search\u0026cat=\u0026q=",
+  "allowZeroSize": false,
+  "baseSettings": {
+    "limitsUnit": 0
+  },
+  "torrentBaseSettings": {}
+}','
+',char(10)),'TorrentRssIndexerSettings',1,25,'2024-06-06 19:15:05.5251003Z',0,1,'[]',0);
+COMMIT;

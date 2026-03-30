@@ -1,0 +1,76 @@
+---
+
+- name: "Check if {{ container_directory_root }}/traefik container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/traefik"
+  register: _traefik_config_dir
+  tags:
+    - traefik_root
+
+- name: "Traefik: Check if {{ container_directory_root }}/traefik/traefik.yml file exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/traefik/traefik.yml"
+  register: _traefik_config_file
+  tags:
+    - traefik
+
+
+- name: "Traefik: Create directory structure for containers"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+  with_items:
+    - "{{ container_directory_root }}/traefik"
+    - "{{ container_directory_root }}/traefik/certs"
+  register: _traefik_config_dir
+  tags:
+    - traefik
+    - traefik_root
+#  when:
+#    - _traefik_config_dir is defined
+#    - not _traefik_config_dir.stat.exists
+
+- name: Add traefik traefik.yml
+  template:
+    src: traefik.yml.j2
+    dest: "{{ container_directory_root }}/traefik/traefik.yml"
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0770
+
+- name: "Traefik: Check if Traefik/g container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: traefik
+  register: _traefik_state
+  tags:
+    - traefik
+
+- name: "Traefik: Launch container"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: traefik
+    image: "{{ traefik_container_image }}"
+    networks:
+      - name: synology-docker-network
+    restart_policy: always
+    ports:
+      - "{{ traefik_http_port }}:80"
+      - "{{ traefik_https_port }}:443"
+      - "{{ traefik_dashboard_port }}:8080"
+    pull: true
+    retries: 5
+    delay: 30
+    security_ops:
+      - no-new-privileges:true
+    env:
+      TZ: "{{ default_timezone }}"
+      CF_API_EMAIL: "{{ cloudflare_email }}"
+      CF_DNS_API_TOKEN: "{{ cloudflare_api_token }}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "{{ container_directory_root }}/traefik/traefik.yml:/traefik.yml:ro"
+      - "{{ container_directory_root }}/traefik/certs:/certs"

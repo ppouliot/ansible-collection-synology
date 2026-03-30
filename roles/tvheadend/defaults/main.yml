@@ -1,0 +1,8 @@
+---
+# defaults file for tvheadend
+# tvheadend_container_image: "ghcr.io/linuxserver/tvheadend:latest"
+tvheadend_container_image: "lscr.io/linuxserver/tvheadend:latest"
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

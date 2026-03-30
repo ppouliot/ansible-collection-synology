@@ -1,0 +1,116 @@
+---
+
+- name: Get list of installed packages
+  when: true
+  changed_when: false
+  ansible.builtin.command: "{{ synology_synopkg }} list --name"
+  register: _synology_package_list
+  ignore_errors: true
+
+- name:  Show _synology_package_list.stout
+  ansible.builtin.debug:
+    var: _synology_package_list.stdout
+
+- name: Check if Container Manager is already installed using synopkg status
+  command: "{{ synology_synopkg }} status ContainerManager"
+  register: _container_manager_synopkg_status
+  ignore_errors: true # Ignore error if package is not found
+
+- name: Check if container manager is already installed  using synopkg is_onoff
+  ansible.builtin.command:
+    cmd: "{{ synology_synopkg }} is_onoff ContainerManager"
+  register: _container_manager_synopkg_onoff
+  ignore_errors: true
+
+- name: Show _container_manager_synopkg_onoff.stout
+  ansible.builtin.debug:
+    var: _container_manager_synopkg_onoff.stdout
+
+- name: Check if Container Manager is already installed using synosystemctl get-active-status pkgctl-ContainerManager
+  ansible.builtin.command:
+    cmd: "{{ synology_synosystemctl }} get-active-status pkgctl-ContainerManager"
+  register: _container_manager_sanosystemctl_get_active_status
+  ignore_errors: true
+
+- name: Show _container_manager_sanosystemctl_get_active_status.stdout
+  ansible.builtin.debug:
+    var: _container_manager_sanosystemctl_get_active_status.stdout
+
+- name: Install Container Manager if not installed
+  # when: "'not installed' in container_manager_status.stderr" # Check if the status indicates it's not installed
+  # when: "not 'package ContainerManager is turned on'  in container_manager_status.stdout"
+  # when: "'not installed' in _container_manager_synopkg_status.stderr" # Check if the status indicates it's not installed
+  command: "{{ synology_synopkg }} install_from_server ContainerManager"
+  become: yes # Use sudo or root privileges if necessary for synopkg
+
+#- name: Install ContainerManager(Docker) from Synology packages
+#  ansible.builtin.command:
+#   cmd: '/usr/syno/bin/synopkg install_from_server ContainerManager'
+#  when: "not 'package ContainerManager is turned on'  in container_manager_status.stdout"
+
+- name: Get list of synology accounts
+  become: true
+  ansible.builtin.command: "{{ synology_synouser }} --enum all"
+  when: true
+  changed_when: false
+  register: _synology_users_list
+
+#- name: add user to docker group
+#  ansible.builtin.command:
+#    cmd: "/usr/syno/bin/synogroup --memberadd docker {{ ansible_user }}"
+#  become: true
+
+# Enable Docker api via methods discovered here
+# https://github.com/docker/machine/issues/1200
+- name: "Enable Docker API Access in config /var/packages/ContainerManager/etc/dockerd.json"
+  template:
+#   dest: /var/packages/ContainerManager/etc/dockerd.json
+    dest: /volume1/@appconf/ContainerManager/dockerd.json
+    src: docker/dockerd.json.j2
+    backup: yes
+  register: dockerd_json
+
+#- name: "Enable Docker API startup in /var/packages/Docker/conf/upstart/pkg-Docker-dockerd.conf"
+#- name: "Enable Docker API startup in /var/packages/Docker/conf/upstart/pkg-ContainerManager-dockerd.conf"
+#  template:
+# Settings for DSM 6
+#   dest: /var/packages/Docker/conf/upstart/pkg-Docker-dockerd.conf
+#   src: docker/pkg-Docker-dockerd.conf.j2
+# Settings for DSM 7
+#   dest: /var/packages/Docker/conf/systemd/pkg-Docker-dockerd.service
+#    dest: /var/packages/ContainerManager/conf/systemd/pkg-ContainerManager-dockerd.service
+#    src: docker/pkg-ContainerManager-dockerd.service.j2
+#    backup: yes
+# notify:
+#   - Restart Docker
+# when: 
+#   - "'package Docker is turned on' in container_manager_status.stdout"
+#    - container_manager_api_access_enable == true
+
+- name: "Restart ContainerManager (Docker)"
+  when: dockerd_json.changed
+  ansible.builtin.command:
+    cmd: "{{ synology_synosystemctl }} restart pkg-ContainerManager-dockerd"
+
+- name: Flush Handlers
+  meta: flush_handlers
+
+- name: Use pip to install python docker, docker-compose libaries
+  ansible.builtin.pip:
+    name: ['docker==6.1.3', 'docker-compose', 'typing', 'zipp', 'lxml']
+    executable: /bin/pip
+    extra_args: "-U"
+
+- name: Check if docker-network exists
+  community.docker.docker_network_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: synology-docker-network
+  tags:
+    - Docker
+  register: _container_manager_network_state
+
+- name: "name create a new network for docker containers as default network won't resolve names"
+  #when: not _container_manager_network_state.exists
+  community.docker.docker_network:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: synology-docker-network

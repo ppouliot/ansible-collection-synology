@@ -1,0 +1,74 @@
+---
+
+############################################
+#               SmokePing                  #
+############################################
+
+- name: SmokePing
+  import_role: 
+    name: ppouliot.synology.smokeping
+  tags: [ smokeping ]
+  when: 
+    - smokeping_enable == true
+
+############################################
+#               Pi-Hole                    #
+############################################
+
+- name: Launch Pi-Hole Contianer on Synology
+  import_role: 
+    name: ppouliot.synology.pihole
+  tags: [ pihole ]
+  when: 
+    - pihole_enable == true
+
+############################################
+#       Jenkins Master and Agents          #
+############################################
+
+- name: Launch Jenkins Contianers on Synology
+  import_role: 
+    name: ppouliot.synology.jenkins
+  tags: [ jenkins ]
+
+- name: Launch Pupperware Contianers on Synology
+  import_role:
+    name: puppet_pupperware
+  tags: [ puppet ]
+  when: 
+    - puppet_pupperware_enable == true
+
+- name: Launch Netbox Contianers on Synology
+  import_role:
+    name: netbox
+  tags: [ netbox ]
+  when: 
+    - netbox_enable == true
+
+- name: Organizr on Synology
+  import_role: 
+    name: ppouliot.synology.organizr
+  tags: [ organizr ]
+  when: 
+    - organizr_enable == true
+
+- name: Unifi-Poller on Synology
+  import_role: 
+    name: unifi_poller
+  tags: [ unifi_poller ]
+  when: 
+    - unifi_poller_enable == true
+
+- name: Unifi API Browser on Synology
+  import_role: 
+    name: unifi_api_browser
+  tags: [ unifi_api_browser ]
+  when: 
+    - unifi_api_browser_enable == true
+
+- name: Unifi-Event-Monitor on Synology
+  import_role: 
+    name: unifi_event_monitor
+  tags: [ unifi_event_monitor ]
+  when: 
+    - unifi_event_monitor_enable == true

@@ -1,0 +1,304 @@
+#!/bin/sh
+# Copyright (c) 2000-2015 Synology Inc. All rights reserved.
+. /var/packages/Docker/scripts/pkg_utils
+## Get modules list
+source /usr/syno/etc.defaults/iptables_modules_list
+DockerModules="xt_addrtype.ko xt_conntrack.ko veth.ko macvlan.ko aufs.ko"
+DockerBridgeModules="llc.ko stp.ko bridge.ko macvlan.ko"
+if [ -f /lib/modules/br_netfilter.ko ]; then
+    DockerBridgeModules="${DockerBridgeModules} br_netfilter.ko"
+fi
+DockerIngressModules="iptable_mangle.ko xt_mark.ko ip_vs.ko ip_vs_rr.ko xt_ipvs.ko"
+DockerBinLink="/usr/local/bin/docker"
+DockerdBinLink="/usr/local/bin/dockerd"
+DockerComposeBinLink="/usr/local/bin/docker-compose"
+ContainerdBinLink="/usr/local/bin/containerd"
+ContainerdCtrBinLink="/usr/local/bin/ctr"
+ContainerdShimBinLink="/usr/local/bin/containerd-shim"
+RuncBinLink="/usr/local/bin/runc"
+DockerInitBinLink="/usr/local/bin/docker-init"
+DockerProxyBinLink="/usr/local/bin/docker-proxy"
+AuplinkBinLink="/usr/local/bin/auplink"
+DockerEnterBinLink="/usr/local/bin/docker-enter"
+InsertModules="${KERNEL_MODULES_CORE} ${KERNEL_MODULES_COMMON} ${KERNEL_MODULES_NAT} ${IPV6_MODULES} ${DockerModules} ${DockerBridgeModules}"
+if [ -f /lib/modules/ip_vs.ko -a -f /lib/modules/ip_vs_rr.ko -a -f /lib/modules/xt_ipvs.ko ]; then
+    InsertModules="${InsertModules} ${DockerIngressModules}"
+fi
+DockerServName="docker"
+RunningContainerList="/var/packages/Docker/etc/LastRunningContainer"
+DeleteDockerDSM="/var/packages/Docker/etc/delete_ddsm/"
+SZF_DDSM_CTL_TOOL="/var/packages/Docker/target/tool/ddsmctl"
+Dockerd="pkg-Docker-dockerd"
+Termd="pkg-Docker-termd"
+TargetPath="/var/packages/Docker/target"
+DockerBin="$TargetPath/usr/bin/docker"
+DockerdBin="$TargetPath/usr/bin/dockerd"
+DockerComposeBin="$TargetPath/usr/bin/docker-compose"
+ContainerdBin="$TargetPath/usr/bin/containerd"
+ContainerdCtrBin="$TargetPath/usr/bin/ctr"
+ContainerdShimBin="$TargetPath/usr/bin/containerd-shim"
+RuncBin="$TargetPath/usr/bin/runc"
+DockerInitBin="$TargetPath/usr/bin/docker-init"
+DockerProxyBin="$TargetPath/usr/bin/docker-proxy"
+AuplinkBin="$TargetPath/usr/bin/auplink"
+DockerEnterBin="$TargetPath/ddsm/tool/docker-enter"
+DockerUpdaterBin="$TargetPath/tool/updater"
+ContainerDepBin="$TargetPath/tool/container_sort"
+ShutdownDockerDaemonFlag="/tmp/shutdown_docker_daemon"
+SupportBtrfs="$(/bin/get_key_value /etc.defaults/synoinfo.conf support_btrfs)"
+IsVDSM="$(/bin/get_key_value /etc.defaults/synoinfo.conf virtual_dsm)"
+
+delete_ddsm()
+{
+	if [ ! -d "$DeleteDockerDSM" ]; then
+		return
+	fi
+
+	if [ ! -z "$(ls -A $DeleteDockerDSM)" ]; then
+		for DDSM in `ls -A $DeleteDockerDSM`; do
+			/bin/rm $DeleteDockerDSM/$DDSM
+			SHARE=`$SZF_DDSM_CTL_TOOL --get-share-name-by-ddsm $DDSM`
+			if [ $? -eq 1 ] && ! /usr/syno/sbin/synoshare --get $SHARE; then
+				#delete the docker dsm
+				logger -p user.err "synoddsm: Delete Container $DDSM begin"
+				synowebapi --exec api=SYNO.Docker.Container method=delete version=1 name="\"$DDSM\"" is_ddsm=true preserve_profile=false force=false
+				logger -p user.err "synoddsm: Delete Container $DDSM end"
+				/usr/syno/bin/synodsmnotify @administrators dsmnotify:system_event ddsm:ddsm_remove_by_share_delete $DDSM $SHARE
+			fi
+		done
+	fi
+}
+
+wait_for_condition()
+{
+	local maxTryCount=3
+	local timeGap=1
+	while eval "$@" >&/dev/null; do
+		if [ "${maxTryCount}" -le 0 ]; then
+			return 1 # timeout
+		fi
+		maxTryCount="$((maxTryCount-1))"
+		sleep "${timeGap}"
+	done
+
+	return 0
+}
+
+argument_reverse() {
+	local args="$1"
+	local arg
+	local ret=""
+
+	for arg in ${args}; do
+		ret="${arg} ${ret}"
+	done
+
+	echo "${ret}"
+}
+
+running_container_record() {
+	if "${DockerBin}" ps; then
+		"${DockerBin}" ps | grep -v "SynologyDSM:" | awk 'NF{ print $NF }' | sed '1 d' > ${RunningContainerList}
+	fi
+}
+
+running_container_restore() {
+	if [ -f ${RunningContainerList} ]; then
+		list="$(cat "${RunningContainerList}")"
+		if [ "x" != "x${list}" ]; then
+			sort_list="$(${ContainerDepBin} ${list})"
+			for container in $sort_list
+			do
+				/usr/syno/bin/synowebapi --exec api=SYNO.Docker.Container method=start version=1 name="${container}"
+			done
+		fi
+		rm -f "${RunningContainerList}"
+	fi
+}
+
+iptables_clear()
+{
+	eval $(iptables-save -t nat | grep DOCKER | grep -v "^:"| sed -e 1d -e  's/^-A/iptables -t filter -D/' -e 's/DEFAULT_//' -e 's/$/;/')
+	eval $(iptables-save -t filter | grep DOCKER | grep -v "^:"| sed -e 1d -e  's/^-A/iptables -t filter -D/' -e 's/DEFAULT_//' -e 's/$/;/')
+
+	iptables -t nat -X DOCKER
+	iptables -t filter -X DOCKER
+}
+
+clean_lock_files() {
+	rm /var/lock/dockerImage.lock /var/lock/dockerMapping.lock /var/lock/dockerRemoteAPI.lock*
+}
+
+umount_aufs() {
+	for i in $(grep aufs/mnt /proc/mounts | sed 's@.*aufs/mnt/\(\w*\)@\1@'); do
+		umount "${TargetPath}"/docker/aufs/mnt/$i
+	done
+
+	if grep -q @docker/aufs /proc/mounts; then
+		umount "${TargetPath}"/docker/aufs
+	fi
+}
+
+has_ddsm() {
+	## check if any container use ddsm images
+	if ${DockerBin} ps -a | awk '{print $2}' | grep SynologyDSM; then
+		return 0
+	fi
+
+	return 1
+}
+
+start_docker_daemon() {
+	local retryTimes=3
+
+	for ((i=0;i<retryTimes;i=i+1)); do
+		echo "start_docker_daemon: try start"
+		start "${Dockerd}"
+
+		if wait_for_condition ! timeout 60 "${DockerBin}" version; then
+			echo "start_docker_daemon: daemon is ready"
+			return 0
+		fi
+
+		stop "${Dockerd}"
+	done
+
+	echo "start_docker_daemon: start fail"
+	return 1
+}
+
+case "$1" in
+	prestart)
+		exit 0
+		;;
+
+	start)
+		[ -d /usr/local/bin ] || mkdir -p /usr/local/bin
+		ln -sf "${DockerBin}" "${DockerBinLink}"
+		ln -sf "${DockerdBin}" "${DockerdBinLink}"
+		ln -sf "${DockerComposeBin}" "${DockerComposeBinLink}"
+		ln -sf "${ContainerdBin}" "${ContainerdBinLink}"
+		ln -sf "${ContainerdCtrBin}" "${ContainerdCtrBinLink}"
+		ln -sf "${ContainerdShimBin}" "${ContainerdShimBinLink}"
+		ln -sf "${RuncBin}" "${RuncBinLink}"
+		ln -sf "${DockerInitBin}" "${DockerInitBinLink}"
+		ln -sf "${DockerProxyBin}" "${DockerProxyBinLink}"
+		ln -sf "${AuplinkBin}" "${AuplinkBinLink}"
+		ln -sf "${DockerEnterBin}" "${DockerEnterBinLink}"
+
+		# install modules
+		iptablestool --insmod "${DockerServName}" ${InsertModules}
+
+		# start docker
+		if ! start_docker_daemon; then
+			exit 1
+		fi
+
+		$DockerUpdaterBin postdaemonup
+
+		if synoservicectl --status "${Dockerd}" > /dev/null 2>&1; then
+			## delete ddsm which share is deleted during package stop
+			delete_ddsm
+
+			## remove ready only bit before ddsm start
+			$SZF_DDSM_CTL_TOOL --un-register-share
+
+			## start synoddsmd
+			if [ "yes" = "$SupportBtrfs" -a "yes" != "$IsVDSM" ]; then
+				start pkg-Docker-synoddsmd
+			fi
+			has_ddsm && /usr/syno/bin/synowebapi --exec api=SYNO.Docker.DDSM method=start version=1
+			running_container_restore
+		else
+			exit 1
+		fi
+
+		#start termd
+		start "${Termd}"
+
+		CreateHelpAndString
+
+		cp -f $TargetPath/config/dsm.docker.conf /usr/local/etc/nginx/conf.d/
+
+		exit 0
+		;;
+
+	prestop)
+		#check if DDSM is do config update
+		RunningCount=`$DockerBin ps -q -f label\="IsSynologyDSM"\="yes" | wc -l`
+
+		if [ "0" != "$RunningCount" ]; then
+			list=`$DockerBin ps --no-trunc=true | grep "SynologyDSM:" |awk '{print $1}'`
+			for DDSM in ${list}; do
+				if $DockerBin exec -t ${DDSM} ps ax | grep config_bootup_check.sh; then
+					msg=`get_section_key_value /usr/syno/synoman/webman/texts/"$SYNOPKG_DSM_LANGUAGE"/strings poweroff poweroff_ddsm_installing`
+					echo "${msg}" > "$SYNOPKG_TEMP_LOGFILE"
+					exit 1
+				fi
+			done
+		fi
+
+		exit 0
+		;;
+
+	stop)
+		modules="$(argument_reverse "${InsertModules}")"
+
+		/usr/syno/bin/synowebapi --exec api=SYNO.Docker.DDSM method=stop version=1
+		rm "${DockerBinLink}"
+		rm "${DockerComposeBinLink}"
+		rm "${DockerEnterBinLink}"
+
+		## Kill termd
+		stop "${Termd}"
+
+		## Record running container
+		running_container_record
+
+		## touch flag to avoid container unexpected stopped false alarm
+		touch $ShutdownDockerDaemonFlag
+		## Kill docker
+		stop "${Dockerd}"
+		## remove flag
+		rm -f $ShutdownDockerDaemonFlag
+
+		rm "${DockerdBinLink}"
+		rm "${DockerContainerdBinLink}"
+		rm "${DockerContainerdCtrBinLink}"
+		rm "${DockerContainerdShimBinLink}"
+		rm "${DockerRuncBinLink}"
+		rm "${DockerInitBinLink}"
+		rm "${DockerProxyBinLink}"
+		rm "${AuplinkBinLink}"
+
+		umount_aufs
+		clean_lock_files
+		iptables_clear
+
+		## make sure synoddsmd is stop when package stop
+		stop pkg-Docker-synoddsmd
+
+		iptablestool --rmmod "${DockerServName}" ${modules}
+
+		# unload modules load by ddsm
+		/usr/syno/synoddsm/scripts/synoddsmhost_util unload-modules
+
+		RemoveHelpAndString
+
+		rm -f /usr/local/etc/nginx/conf.d/dsm.docker.conf
+
+		exit 0
+		;;
+
+	status)
+		if synoservicectl --status "${Dockerd}" > /dev/null 2>&1; then
+			exit 0
+		else
+			exit 1
+		fi
+		;;
+
+	*)
+		exit 1
+		;;
+esac

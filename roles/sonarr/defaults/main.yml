@@ -1,0 +1,45 @@
+---
+# Sonaar
+sonarr_container_image: "lscr.io/linuxserver/sonarr:latest"
+sonarr_port: "8989"
+
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+synology_htpc_stack_enable: false
+
+# Plex
+plex_username: ""
+plex_password: ""
+plex_authtoken: ""
+plex_claim_token: ""
+
+# NZBGeek APi Key
+nzbgeek_api_url: "https://api.nzbgeek.info/"
+nzbgeek_api_key: "1234567890abcdef1234567890abcdef"
+
+# OZNzb
+oznzb_api_url: "https://api.oznzb.com"
+oznzb_api_key: "1234567890abcdef1234567890abcdef"
+
+# MediaBrowser
+mediabrowser_host: "192.168.1.200"
+mediabrowser_password: "P@ssW0rd"
+
+# Emby
+emby_host: "192.168.1.100"
+emby_api_key: "1234567890abcdef1234567890abcdef"
+
+# NZBGet
+nzbget_control_password: nzbget
+nzbget_api_key: "7NGDN9NKKK17VEQDC78S5KJVPK"
+
+# Deluge
+deluge_password: deluge
+
+# Jackett
+jackett_api_key: "{{ ansible_facts['jackett_api_key'] }}"
+
+# IPTorrents RSS Url
+ipt_rss_url: "http://iptorrents.com/rss"

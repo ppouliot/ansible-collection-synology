@@ -1,0 +1,106 @@
+---
+- name: Configure SMB service
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.FileServ.SMB
+    api_version: "3"
+    api_method: set
+    request_method: POST
+    api_params:
+      enable_samba: "{{ synology_bootstrap_enable_smb | to_json }}"
+      workgroup: "{{ synology_bootstrap_smb_workgroup }}"
+    ignore_api_errors: [119]
+  when: synology_bootstrap_enable_smb is defined
+  register: _configure_smb
+
+- name: Debug — Configure SMB service
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Configure SMB service"
+  when: _configure_smb.ignored_api_error is defined and _configure_smb.ignored_api_error == 119
+
+- name: Configure NFS service
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.FileServ.NFS
+    api_version: "3"
+    api_method: set
+    request_method: POST
+    api_params:
+      enable_nfs: "{{ synology_bootstrap_enable_nfs | to_json }}"
+    ignore_api_errors: [119]
+  when: synology_bootstrap_enable_nfs is defined
+  register: _configure_nfs
+
+- name: Debug — Configure NFS service
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Configure NFS service"
+  when: _configure_nfs.ignored_api_error is defined and _configure_nfs.ignored_api_error == 119
+
+- name: Get current FTP config
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.FileServ.FTP
+    api_version: "3"
+    api_method: get
+    ignore_api_errors: [119]
+  register: _ftp_current_config
+  when: synology_bootstrap_enable_ftp
+
+- name: Debug — Get current FTP config
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Get current FTP config"
+  when: _ftp_current_config.ignored_api_error is defined and _ftp_current_config.ignored_api_error == 119
+
+- name: Configure FTP service
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.FileServ.FTP
+    api_version: "3"
+    api_method: set
+    request_method: POST
+    api_params: "{{ _ftp_current_config.json.data | combine({'enable_ftp': synology_bootstrap_enable_ftp | bool}) }}"
+    ignore_api_errors: [119]
+  when: synology_bootstrap_enable_ftp
+  register: _configure_ftp
+
+- name: Debug — Configure FTP service
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Configure FTP service"
+  when: _configure_ftp.ignored_api_error is defined and _configure_ftp.ignored_api_error == 119
+
+- name: Configure SFTP service
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.FileServ.FTP.SFTP
+    api_version: "1"
+    api_method: set
+    request_method: POST
+    api_params:
+      enable_sftp: "{{ synology_bootstrap_enable_sftp | bool }}"
+    ignore_api_errors: [119]
+  when: synology_bootstrap_enable_sftp
+  register: _configure_sftp
+
+- name: Debug — Configure SFTP service
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Configure SFTP service"
+  when: _configure_sftp.ignored_api_error is defined and _configure_sftp.ignored_api_error == 119
+
+- name: Note — tasks requiring DSM admin account
+  ansible.builtin.debug:
+    msg: >
+      Some tasks in this file require the built-in DSM admin account (SYNO.Core.* write APIs).
+      If you see 'ignored_api_error: 119', enable the admin account temporarily or run bootstrap
+      as admin. Affected APIs: SYNO.Core.Package.Feed, SYNO.Core.FileServ.*, SYNO.Core.Share,
+      SYNO.Core.Region.NTP, SYNO.Core.Security.*, SYNO.Core.Terminal, SYNO.Core.User.Home
+  when: false  # informational only — never actually runs

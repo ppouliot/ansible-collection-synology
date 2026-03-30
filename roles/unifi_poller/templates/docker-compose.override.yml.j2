@@ -1,0 +1,16 @@
+version: '3'
+services:
+  influxdb:
+    networks:
+      - unifi-poller
+  chronograf:
+    networks:
+      - unifi-poller
+  grafana:
+    networks:
+      - unifi-poller
+  unifi-poller:
+    networks:
+      - unifi-poller
+networks:
+  unifi-poller:

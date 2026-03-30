@@ -1,0 +1,21 @@
+---
+
+- name: "Exportarr: Create exportarr_radarr container"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: exportarr_radarr
+    image: "{{ exportarr_container_image }}"
+    pull: yes
+    ports:
+      - "{{ radarr_exportarr_port }}:{{ radarr_exportarr_port }}"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK: "022"
+      PORT: "{{ radarr_exportarr_port }}"
+      URL: "http://{{ ansible_default_ipv4.address }}:{{ radarr_port }}"
+      APIKEY: "{{ radarr_api_key }}"
+    command: ["radarr"]
+    state: started
+    restart_policy: unless-stopped

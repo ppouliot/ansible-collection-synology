@@ -1,0 +1,202 @@
+---
+- name: "Lidarr: Check if Lidarr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/lidarr"
+  register: _lidarr_config_dir
+  tags:
+    - lidarr
+    - lidarr_root
+- name: "Lidarr: Create directories to house lidarr data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/lidarr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _lidarr_config_dir
+  tags:
+    - lidarr
+    - lidarr_root
+  when:
+    - _lidarr_config_dir is defined
+    - not _lidarr_config_dir.stat.exists
+- name: "Lidarr: Check if Lidarr container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: lidarr
+  register: _lidarr_state
+  tags:
+    - lidarr
+- name: "Lidarr: Container installation and configuration block"
+  block:
+    - name: "Lidarr: Create lidarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: lidarr
+        image: "{{ lidarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/lidarr:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/music:/music"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _lidarr_status
+    - name: "Lidarr: Set lidarr_is_running fact"
+      ansible.builtin.set_fact:
+        lidarr_is_running: "{{ _lidarr_status.container.State.Running }}"
+    - name: "Lidarr: Wait for Lidarr HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ lidarr_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Lidarr: Stop Lidarr container"
+      community.docker.docker_container:
+        name: lidarr
+        state: stopped
+    - name: "Lidarr: Add sql script LidarrRootFolders.sql"
+      ansible.builtin.template:
+        src: LidarrRootFolders.sql.j2
+        dest: "{{ container_directory_root }}/lidarr/LidarrRootFolders.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Lidarr: import LidarrRootFolders.sql into lidarr.db"
+      ansible.builtin.command:
+        cmd: 'sqlite3 lidarr.db ".read LidarrRootFolders.sql"'
+        chdir: "{{ container_directory_root }}/lidarr"
+      changed_when: true
+    - name: "Lidarr: Add sql script LidarrDownloadClients.sql"
+      ansible.builtin.template:
+        src: LidarrDownloadClients.sql.j2
+        dest: "{{ container_directory_root }}/lidarr/LidarrDownloadClients.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Lidarr: Check for LidarrDownloadClients"
+      ansible.builtin.command:
+        cmd: 'sqlite3 lidarr.db "SELECT Name FROM DownloadClients;"'
+        chdir: "{{ container_directory_root }}/lidarr"
+      register: _lidarr_download_clients
+      changed_when: false
+    - name: "Lidarr: show _lidarr_download_clients"
+      ansible.builtin.debug:
+        msg: "{{ _lidarr_download_clients }}"
+    - name: "Lidarr: import LidarrDownloadClients.sql into lidarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 lidarr.db ".read LidarrDownloadClients.sql"'
+        chdir: "{{ container_directory_root }}/lidarr"
+      when: _lidarr_download_clients.stdout == ""
+      changed_when: true
+    - name: "Lidarr: Add sql script LidarrIndexers.sql"
+      ansible.builtin.template:
+        src: LidarrIndexers.sql.j2
+        dest: "{{ container_directory_root }}/lidarr/LidarrIndexers.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Lidarr: Check for LidarrIndexers"
+      ansible.builtin.command:
+        cmd: 'sqlite3 lidarr.db "SELECT Name FROM Indexers;"'
+        chdir: "{{ container_directory_root }}/lidarr"
+      register: _lidarr_indexers
+      changed_when: false
+    - name: "Lidarr: show _lidarr_indexers"
+      ansible.builtin.debug:
+        msg: "{{ _lidarr_indexers }}"
+    - name: "Lidarr: import LidarrIndexers.sql into lidarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 lidarr.db ".read LidarrIndexers.sql"'
+        chdir: "{{ container_directory_root }}/lidarr"
+      when: _lidarr_indexers.stdout == ""
+      changed_when: true
+    - name: "Lidarr: Check for LidarrNotifications"
+      ansible.builtin.command:
+        cmd: 'sqlite3 lidarr.db "SELECT Name FROM Notifications;"'
+        chdir: "{{ container_directory_root }}/lidarr"
+      register: _lidarr_notifications
+      changed_when: false
+    - name: "Lidarr: print _lidarr_notifications"
+      ansible.builtin.debug:
+        msg: "{{ _lidarr_notifications }}"
+    - name: "Lidarr: Start Lidarr container"
+      community.docker.docker_container:
+        name: lidarr
+        state: started
+ # End Block
+  tags:
+    - lidarr
+    - lidarr_install
+  when: not _lidarr_state.exists
+- name: "Lidarr: Container pull and restart"
+  block:
+    - name: "Lidarr: Create lidarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: lidarr
+        image: "{{ lidarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/lidarr:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/music:/music"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _lidarr_status
+  when: _lidarr_state.exists
+  tags:
+    - lidarr
+    - lidarr_restart
+- name: "Lidarr: Read Lidarr API key"
+  community.general.xml:
+    path: /volume1/docker/lidarr/config.xml
+    xpath: /Config/ApiKey
+    content: text
+  register: lidarr_xml
+- name: "Lidarr: Set api key variable"
+  ansible.builtin.debug:
+    var: lidarr_xml.matches[0].ApiKey
+- name: "Lidarr: Set Facts"
+  ansible.builtin.set_fact:
+    lidarr_config_dir: "{{ _lidarr_config_dir }}"
+    lidarr_port: "{{ lidarr_port }}"
+    lidarr_api_key: "{{ lidarr_xml.matches[0].ApiKey }}"
+    cacheable: true
+  tags:
+    - lidarr
+    - lidarr_facts
+- name: "Lidarr: Show Facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "lidarr_config_dir: {{ _lidarr_config_dir }}"
+    - "lidarr_port: {{ lidarr_port }}"
+    - "lidarr_api_key {{ lidarr_api_key }}"
+  tags:
+    - lidarr
+    - lidarr_facts
+
+- name: "Lidarr: Re-read local facts"
+  ansible.builtin.setup:
+    filter: ansible_local

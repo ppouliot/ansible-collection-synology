@@ -1,0 +1,35 @@
+---
+- name: "Mylar: Create directories to house mylar data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/mylar"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  tags:
+    - mylar
+- name: "Mylar: Create mylar container"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: mylar
+    image: "{{ mylar_container_image }}"
+    networks:
+      - name: synology-docker-network
+    pull: true
+    retries: 5
+    delay: 30
+    network_mode: container:gluetun
+    volumes:
+      - "{{ container_directory_root }}/mylar:/config"
+      - "{{ container_directory_root }}/downloads:/downloads"
+      - "{{ container_directory_root }}/comics:/comics"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK: "022"
+    restart_policy: unless-stopped
+    state: started
+  tags:
+    - mylar

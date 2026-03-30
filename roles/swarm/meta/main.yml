@@ -1,0 +1,14 @@
+galaxy_info:
+  role_name: swarm
+  namespace: ppouliot
+  author: Peter J. Pouliot <peter@pouliot.net>
+  description: Opinionated Docker swarm deployment using Synology NAS devices
+  company:
+  license: Apache-2.0
+  min_ansible_version: 2.1
+  platforms:
+    - name: synology
+      version:
+        - any
+  galaxy_tags: []
+dependencies: []

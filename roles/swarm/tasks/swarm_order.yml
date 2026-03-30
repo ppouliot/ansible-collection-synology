@@ -1,0 +1,131 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- name: Gather facts from swarm group
+  hosts: swarm
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  tasks:
+    - name: "print swarm manager values"
+      ansible.builtin.debug:
+        var: "{{ item }}"
+      loop:
+        - swarm_nodes
+        - swarm_manager_ips
+        - swarm_manager_names
+        - swarm_manager_tokens
+        - swarm_worker_ips
+        - swarm_worker_tokens
+        - swarm_network
+        - swarm_network_index
+        - swarm_manager_index
+        - local_swarm_network
+        - local_swarm_manager
+
+    - name: convert IP address to subnet
+      debug:
+        msg: "{{ swarm_manager_ips | ansible.utils.ipsubnet }}"
+      register: _swarm_manager_subnet
+
+    - name: Checking swarm network and node network
+      ansible.builtin.debug:
+        var: "swarm_network {{ swarm_network }} and my network {{ ansible_default_ipv4.network }}" 
+
+    - name: "find index of ansible_default_ipv4.network"
+      ansible.builtin.debug:
+        msg: "Index of {{ swarm_network | ansible.utils.index_of(test='equalto', value=ansible_default_ipv4.network) }}" 
+
+    - name: "find swarm_manager_ip that matches node ansible_default_ipv4.network"
+      ansible.builtin.debug:
+        msg: "Index of {{ swarm_manager_ips | ansible.utils.index_of(test='equalto', value=ansible_default_ipv4.address) }}" 
+
+    - name: "find index and swarm_manager_ip"
+      ansible.builtin.debug:
+        msg: "Index of {{ swarm_manager_ips | ansible.utils.index_of(test='equalto', value=ansible_default_ipv4.address) }}" 
+
+    - ansible.builtin.group_by:
+        key: "swarm_{{ swarm_network_index }}"
+    - name: "Print groups"
+      ansible.builtin.debug:
+        var: group_names
+
+    - name: Select swarm group name from group_names elements matching a regex
+      ansible.builtin.debug:
+        msg: "{{ group_names | select('match', '^(swarm_)[0-9]+') | list | replace('[', '') | replace(']', '') | replace(\"'\", \"\") }}"
+      register: _swarm_group_name
+
+    - name: set the swarm facts
+      ansible.builtin.set_fact:
+        swarm_group_name: "{{ _swarm_group_name.msg }}"
+        cacheable: true
+
+    - name: "Print swarm_group_name fact"
+      ansible.builtin.debug:
+        var: swarm_group_name
+
+    - name: Show members of swarm_group_name
+      ansible.builtin.debug:
+        msg: "{{ groups[ swarm_group_name ]}}"
+      register: _swarm_group_members
+
+    - name: set the swarm facts swarm_group_members
+      ansible.builtin.set_fact:
+        swarm_group_members: "{{ _swarm_group_members.msg }}"
+        cacheable: true
+
+    - name: "Print swarm_group_members fact"
+      ansible.builtin.debug:
+        var: swarm_group_members
+
+    - name: Debug group members
+      debug:
+        msg: "Members of {{ swarm_group_name }}: {{ swarm_group_members }}"
+
+#    - name: Find common elements between two lists
+#      ansible.builtin.debug:
+#        msg: "Common elements: {{ swarm_manager_ips | ansible.builtin.intersect(swarm_nodes) }}"
+
+#    - name: create swarm facts in /facts.d/
+#      ansible.builtin.template:
+#        src: "{{ playbook_dir }}/../templates/swarm_facts.yml.j2"
+#        dest: "{{ container_directory_root }}/facts.d/swarm_{{ swarm_network_index }}.yml"
+#        owner: root
+#        group: root
+#        mode: 0600
+
+
+- name: SWARM - Figure out who the swarm manager is
+  hosts: swarm_group_members[0]
+  any_errors_fatal: true
+  become: true
+  tasks:
+    - name: "Check if the host is part of a swarm"
+      ansible.builtin.shell: /usr/local/bin/docker info --format '{{ "{{.Swarm.LocalNodeState}}" }}'
+      register: _swarm_status
+      changed_when: false
+
+    - name: Init a new swarm with default parameters
+      community.docker.docker_swarm:
+        state: present
+      when: "'inactive' in _swarm_status.stdout"  # Conditional execution
+      register: _swarm_init
+#     changed_when: "'Swarm initialized' in _swarm_init.stdout"
+      changed_when: "'New Swarm cluster created' in _swarm_init.actions"
+
+    - name: Get swarm_info from nodes
+      community.docker.docker_swarm_info:
+      register: _swarm_info
+      changed_when: false
+
+    - name: set the swarm facts
+      ansible.builtin.set_fact:
+        swarm_manager_ip: "{{ swarm_manager_ip }}"
+        swarm_worker_ip: "{{ swarm_worker_ip }}"
+        swarm_status: "{{ _swarm_status.stdout }}"
+        swarm_info: "{{ _swarm_info }}"
+        swarm_facts: "{{ _swarm_info['swarm_facts'] }}"
+        swarm_join_tokens: "{{ _swarm_info['swarm_facts']['JoinTokens'] }}"
+        swarm_manager_token: "{{ _swarm_info['swarm_facts']['JoinTokens']['Manager'] }}"
+        swarm_worker_token: "{{ _swarm_info['swarm_facts']['JoinTokens']['Worker'] }}"
+        cacheable: true

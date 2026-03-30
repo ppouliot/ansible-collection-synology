@@ -1,0 +1,15 @@
+---
+- name: "Synology-Notifications: Run synology-notifications container"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: synology-notifications
+    image: "{{ synology_notifications_container_image }}"
+    pull: true
+    retries: 5
+    delay: 30
+    env:
+      SLACK_WEBHOOK: "{{ slack_webhook_url }}"
+      API_KEY: "{{ slack_api_key }}"
+    restart_policy: unless-stopped
+    ports:
+      - "{{ synology_notifications_exposted_port }}:8080"

@@ -1,0 +1,7 @@
+---
+# defaults file for synology_notifications
+synology_notifications_container_image: "ryancurrah/synology-notifications:latest"
+synology_notifications_enable: true
+synology_notifications_exposted_port: "8005"
+slack_webhook_url: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+slack_api_key: xp-591822182080-585520718305-1396945359495-1f4c77979b8feb15c1bb6dce146a0af8

@@ -1,0 +1,17 @@
+---
+
+- name: Check if Git package is already installed
+  ansible.builtin.command:
+    cmd: "{{ synology_synopkg }} list --name"
+  register: git_installed_check
+  changed_when: false
+  ignore_errors: true
+
+- name: Install Git package from server if not installed
+  ansible.builtin.command: "{{ synology_synopkg }} install_from_server Git"
+  # Note: The exact package name might be "Git Server" or simply "Git" depending on the source.
+  # Adjust the name in the command to match the name used in the `synopkg list --name` output.
+  register: git_install_result
+  changed_when: "'installed' in git_install_result.stdout or git_install_result.rc == 0"
+  failed_when: "git_install_result.rc != 0 and 'already installed' not in git_install_result.stdout"
+  when: "'Git' not in git_installed_check.stdout"

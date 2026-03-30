@@ -1,0 +1,20 @@
+---
+# exportarr
+exportarr_container_image: "ghcr.io/onedr0p/exportarr:v2.0"
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+sonarr_exportarr_port: "9707"
+sonarr_api_key: "{{ ansible_facts['sonarr_api_key'] }}"
+radarr_exportarr_port: "9708"
+radarr_api_key: "{{ ansible_facts['radarr_api_key'] }}"
+lidarr_exportarr_port: "9709"
+lidarr_api_key: "{{ ansible_facts['lidarr_api_key'] }}"
+prowlarr_exportarr_port: "9710"
+prowlarr_api_key: "{{ ansible_facts['prowlarr_api_key'] }}"
+readarr_exportarr_port: "9711"
+readarr_api_key: "{{ ansible_facts['readarr_api_key'] }}"
+bazarr_exportarr_port: "9712"
+bazarr_api_key: "{{ ansible_facts['bazarr_api_key'] }}"
+

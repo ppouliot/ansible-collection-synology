@@ -1,0 +1,47 @@
+---
+
+# Headphones
+enable_headphones: false
+headphones_container_image: "lscr.io/linuxserver/headphones:latest"
+headphones_port: 8181
+headphones_vip_username: ""
+headphones_vip_password: ""
+
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+
+# Plex
+plex_username: ""
+plex_password: ""
+plex_authtoken: ""
+plex_claim_token: ""
+
+# Sonaar , Radarr , Lidarr Metadata
+# NZBGeek APi Key
+nzbgeek_username: "clarkkent"
+nzbgeek_password: "P@$$w0rd"
+nzbgeek_api_key: "1234567890abcdef1234567890abcdef"
+
+# OZNzb
+oznzb_api_url: "https://api.oznzb.com"
+oznzb_api_key: "1234567890abcdef1234567890abcdef"
+oznzb_username: "bwayne"
+oznzb_password: "P@ssW0rd"
+
+# NzbHydra2
+nzbhydra2_api_key: "7NGDN9NKKK17VEQDC78S5KJVPK"
+# nzbhydra2_api_key: "{{ ansible_facts['nzbhydra2_api_key'] }}"
+
+
+# NZBGet
+nzbget_control_password: nzbget
+nzbget_api_key: "7NGDN9NKKK17VEQDC78S5KJVPK"
+# nzbget_api_key: "{{ ansible_facts['nzbget_api_key'] }}"
+
+# Deluge
+deluge_password: deluge
+
+# Jackett
+jackett_api_key: "{{ ansible_facts['jackett_api_key'] }}"

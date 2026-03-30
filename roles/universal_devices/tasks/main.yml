@@ -1,0 +1,16 @@
+---
+
+# tasks file for universal_devices
+
+############################
+# Begin Home Control Infra #
+############################
+
+- name: Universal Devices ISY994 Admin Console
+  include_tasks: isy994_adminconsole.yml
+  when: isy994_admin_console_enable
+
+- name: Universal Devices Polyglot-v
+  include_tasks: polyglot_v2.yml
+  when: polyglotv2_enable
+

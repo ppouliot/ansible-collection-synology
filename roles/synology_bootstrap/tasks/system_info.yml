@@ -1,0 +1,62 @@
+---
+- name: Get DSM system info
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.System
+    api_version: "3"
+    api_method: info
+    ignore_api_errors: [119]
+  register: _synology_system_raw
+
+- name: Get DSM info
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.DSM.Info
+    api_version: "2"
+    api_method: getinfo
+    ignore_api_errors: [119]
+  register: _synology_dsm_raw
+
+- name: Set system info facts
+  ansible.builtin.set_fact:
+    synology_system_info: "{{ _synology_system_raw.json.data | default({}) }}"
+    synology_dsm_info: "{{ _synology_dsm_raw.json.data | default({}) }}"
+
+- name: Display DSM version
+  ansible.builtin.debug:
+    msg: "DSM {{ synology_dsm_info.version | default('unknown') }} on {{ synology_dsm_info.model | default('unknown') }}"
+
+- name: Warn if system info unavailable (insufficient API permissions)
+  ansible.builtin.debug:
+    msg: "WARNING: DSM system info incomplete — SYNO.DSM.Info or SYNO.Core.System returned error 119. Run bootstrap as DSM primary admin for full system facts."
+  when: >
+    (_synology_dsm_raw.ignored_api_error is defined and _synology_dsm_raw.ignored_api_error == 119) or
+    (_synology_system_raw.ignored_api_error is defined and _synology_system_raw.ignored_api_error == 119)
+
+- name: Ensure local facts directory exists
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/facts"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+
+- name: Save system info fact locally
+  ansible.builtin.copy:
+    content: |
+      # System info fact — {{ inventory_hostname }}
+      # Generated via DSM API (Phase 1 — no SSH required)
+      # DSM URL: {{ synology_bootstrap_dsm_url }}
+      model: "{{ synology_dsm_info.model | default('unknown') }}"
+      serial: "{{ synology_system_info.serial | default('unknown') }}"
+      dsm_version: "{{ synology_dsm_info.version | default('unknown') }}"
+      dsm_buildnumber: "{{ synology_dsm_info.buildnumber | default('unknown') }}"
+      uptime: "{{ synology_system_info.up_time | default('unknown') }}"
+      cpu_vendor: "{{ synology_system_info.cpu_vendor | default('unknown') }}"
+      cpu_cores: "{{ synology_system_info.cpu_cores | default('unknown') }}"
+      ram_size: "{{ synology_system_info.ram_size | default('unknown') }}"
+    dest: "{{ playbook_dir }}/facts/{{ inventory_hostname }}_system_info.yml"
+  delegate_to: localhost

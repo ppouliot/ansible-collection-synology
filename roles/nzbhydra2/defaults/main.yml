@@ -1,0 +1,12 @@
+---
+# NZBHydara
+nzbhydra2_container_image: "lscr.io/linuxserver/nzbhydra2:latest"
+# nzbhydra2_api_key: "7NGDN9NKKK17VEQDC78S5KJVPK"
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+nzbgeek_api_key: "1234567890abcdef1234567890abcdef"
+oznzb_api_url: "https://api.oznzb.com"
+oznzb_api_key: "1234567890abcdef1234567890abcdef"
+jackett_api_key: "{{ ansible_facts['jackett_api_key'] }}"

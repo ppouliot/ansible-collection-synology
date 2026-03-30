@@ -1,0 +1,71 @@
+---
+- name: "Code-Server: Check if Code-Server container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/code_server"
+  register: _code_server_config_dir
+  tags:
+    - code_server
+    - code_server_root
+- name: "Code-Server: Create directories to house code_server data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/code_server"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _code_server_config_dir
+  tags:
+    - code_server
+    - code_server_root
+  when:
+    - _code_server_config_dir is defined
+    - not _code_server_config_dir.stat.exists
+- name: "Code-Server: Check if Code-Server container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: code_server
+  register: _code_server_state
+  tags:
+    - code_server
+
+
+- name: "Code-Server: Container installation and configuration block"
+  block:
+    - name: "Code-Server: Create code_server container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: code_server
+#       hostname: code_server
+        image: "{{ code_server_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        ports:
+          - 8443:8443
+        env:
+          - "PUID={{ user_puid }}"
+          - "PGID={{ group_pgid }}"
+          - "TZ={{ default_timezone }}"
+          - "HASHED_PASSWORD={{ synology_dsm_password | ansible.builtin.password_hash('sha512', salt='hexdigits') }}"
+          - "SUDO_PASSWORD_HASH={{ synology_dsm_password | ansible.builtin.password_hash('sha512', salt='hexdigits') }}"
+          #- PROXY_DOMAIN=code-server.my.domain
+          - DEFAULT_WORKSPACE=/config/workspace
+          - PWA_APPNAME=code-server
+        volumes:
+          - "{{ container_directory_root }}/code-server/config:/config"
+          - "{{ container_directory_root }}/code-server/workspaces:/config/workspace"
+        restart_policy: unless-stopped
+      register: _code_server_status
+    - name: "Code-Server: Set code_server_is_running fact"
+      ansible.builtin.set_fact:
+        code_server_is_running: "{{ _code_server_status.container.State.Running }}"
+    - name: "Code-Server: Wait for Code-Server HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ code_server_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call

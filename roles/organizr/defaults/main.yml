@@ -1,0 +1,6 @@
+---
+# defaults file for organizr
+
+# Organizr
+organizr_container_image: "organizr/organizr:latest"
+organizr_port: 9983

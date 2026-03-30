@@ -1,0 +1,4 @@
+---
+
+- name: "Gluetun: Include {{ gluetun_vpn_type }} VPN tasks"
+  ansible.builtin.include_tasks: "{{ gluetun_vpn_type }}.yml"

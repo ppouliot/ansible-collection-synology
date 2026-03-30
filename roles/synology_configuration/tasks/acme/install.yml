@@ -1,0 +1,19 @@
+---
+# https://dr-b.io/post/Synology-DSM-7-with-Lets-Encrypt-and-DNS-Challenge
+- name: Download acme.sh
+  ansible.builtin.get_url:
+    url: "https://github.com/acmesh-official/acme.sh/archive/master.zip"
+    dest: /tmp/acme.sh.zip
+
+#  ansible.builtin.command:
+#    args:
+#      cmd: "/bin/wget -o /tmp/acme.sh.zip https://github.com/acmesh-official/acme.sh/archive/master.zip"
+
+- name: Use 7z to unpack acme.sh.zip
+  ansible.builtin.command: "/bin/7z x -o/usr/local/share /tmp/acme.sh.zip"
+
+- name: Move unpacked archive to proper named acme.sh
+  ansible.builtin.command: "/bin/mv /usr/local/share/acme.sh-master /usr/local/share/acme.sh"
+
+- name: Change the owner of /usr/local/share/acme.sh
+  ansible.builtin.command: "/bin/chown -R root:root /usr/local/share/acme.sh"

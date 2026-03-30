@@ -1,0 +1,21 @@
+---
+
+- name: "Exportarr: Create exportarr_sonarr container"
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: exportarr_sonarr
+    image: "{{ exportarr_container_image }}"
+    pull: yes
+    ports:
+      - "{{ sonarr_exportarr_port }}:{{ sonarr_exportarr_port }}"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK: "022"
+      PORT: "{{ sonarr_exportarr_port }}"
+      URL: "http://{{ ansible_default_ipv4.address }}:{{ sonarr_port }}"
+      APIKEY: "{{ sonarr_api_key }}"
+    command: ["sonarr"]
+    state: started
+    restart_policy: unless-stopped

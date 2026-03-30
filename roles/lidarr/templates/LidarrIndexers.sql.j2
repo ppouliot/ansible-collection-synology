@@ -1,0 +1,51 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE IF NOT EXISTS "Indexers" ("Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Name" TEXT NOT NULL, "Implementation" TEXT NOT NULL, "Settings" TEXT, "ConfigContract" TEXT, "EnableRss" INTEGER, "EnableAutomaticSearch" INTEGER, "EnableInteractiveSearch" INTEGER NOT NULL, "Priority" INTEGER NOT NULL DEFAULT 25, "DownloadClientId" INTEGER NOT NULL DEFAULT 0, "Tags" TEXT);
+INSERT INTO Indexers VALUES(1,'Headphones VIP','Headphones',replace('{
+  "baseUrl": "https://indexer.codeshy.com",
+  "apiPath": "/api",
+  "apiKey": "964d601959918a578a670984bdee9357",
+  "categories": [
+    3000,
+    3010,
+    3020,
+    3030,
+    3040
+  ],
+  "username": "{{ headphones_vip_username }}",
+  "password": "{{ headphones_vip_password }}",
+}','
+',char(10)),'HeadphonesSettings',1,1,1,25,0,'[]');
+INSERT INTO Indexers VALUES(3,'IP Torrents','IPTorrents',replace('{
+  "baseUrl": "{{ ipt_rss_url }}",
+  "minimumSeeders": 1,
+  "seedCriteria": {},
+  "rejectBlocklistedTorrentHashesWhileGrabbing": false
+}','
+',char(10)),'IPTorrentsSettings',0,0,0,25,0,'[]');
+INSERT INTO Indexers VALUES(4,'Nyaa','Nyaa',replace('{
+  "baseUrl": "https://www.nyaa.si",
+  "additionalParameters": "\u0026cats=2_0\u0026filter=1",
+  "minimumSeeders": 1,
+  "seedCriteria": {},
+  "rejectBlocklistedTorrentHashesWhileGrabbing": false
+}','
+',char(10)),'NyaaSettings',1,1,1,25,0,'[]');
+{% if jackett_api_key is defined and jacket_api_key|d('')|length > 0 %}
+INSERT INTO Indexers VALUES(5,'Torznab-Jackett','Torznab',replace('{
+  "minimumSeeders": 1,
+  "seedCriteria": {},
+  "rejectBlocklistedTorrentHashesWhileGrabbing": false,
+  "baseUrl": "http://{{ ansible_default_ipv4.address }}:9117/torznab/iptorrents",
+  "apiPath": "/api", 
+  "apiKey": "{{ jackett_api_key }}",
+  "categories": [
+    3000,
+    3010,
+    3030,
+    3040
+  ]
+}','
+',char(10)),'TorznabSettings',1,1,1,25,0,'[]');
+{% endif %}
+COMMIT;

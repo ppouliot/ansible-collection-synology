@@ -1,0 +1,38 @@
+---
+
+- name: "Flaresolverr: Check if Flaresolverr container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: flaresolverr
+  register: _flaresolverr_state
+  tags:
+    - flaresolverr
+
+- name: "Flaresolverr: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: "Flaresolverr: Create flaresolverr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: flaresolverr
+        image: "{{ flaresolverr_container_image }}"
+        ports:
+          - "{{ flaresolverr_port }}:8191"
+        pull: true
+        retries: 5
+        delay: 30
+        restart_policy: unless-stopped
+        state: started
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          LOG_LEVEL: "info"
+      register: _flaresolverr_status
+    - name: "Flaresolverr: Set flaresolverr_is_running fact"
+      ansible.builtin.set_fact:
+        flaresolverr_is_running: "{{ _flaresolverr_status.container.State.Running }}"
+
+  tags:
+    - flaresolverr
+  # End Block

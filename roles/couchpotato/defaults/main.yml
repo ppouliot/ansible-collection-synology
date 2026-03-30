@@ -1,0 +1,8 @@
+---
+# CouchPotato
+couchpotato_container_image: "lscr.io/linuxserver/couchpotato:latest"
+couchpotato_port: 5050
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

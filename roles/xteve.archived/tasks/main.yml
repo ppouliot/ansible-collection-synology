@@ -1,0 +1,76 @@
+---
+
+- name: "Xteve: Check if Xteve container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/xteve"
+  register: _xteve_config_dir
+  tags:
+    - xteve
+    - xteve_root
+
+- name: "Xteve: Filesystem Directories"
+  block:
+    - name: Create Xteve Daemon Directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0755"
+        recurse: true
+      with_items:
+          - "{{ container_directory_root }}/xteve"
+          - "{{ container_directory_root }}/xteve/_config"
+          - "{{ container_directory_root }}/xteve/tmp"
+      tags:
+        - xteve
+        - xteve_root
+      when:
+        - _xteve_config_dir is defined
+        - not _xteve_config_dir.stat.exists
+
+- name: "Xteve: Check if Xteve container is running"
+  community.general.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: xteve
+  register: _xteve_state
+  tags:
+    - xteve
+
+- name: "Xteve: set facts"
+  ansible.builtin.set_fact:
+    xteve_port: "{{ xteve_port }}"
+    xteve_config_dir: "{{ _xteve_config_dir }}"
+  tags:
+    - xteve
+
+- name: "Xteve: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: Create xteve container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: xteve
+        image: "{{ xteve_container_image }}"
+        pull: true
+        retries: 5
+        delay: 30
+        network_mode: host
+        volumes:
+          - "{{ container_directory_root }}/xteve:/root/.xteve:rw"
+          - "{{ container_directory_root }}/xteve/_config:/config:rw"
+          - "{{ container_directory_root }}/xteve/tmp:/tmp/xteve:rw"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart_policy: unless-stopped
+      register: _xteve_status
+    - name: "Xteve: Set xteve_is_running fact"
+      ansible.builtin.set_fact:
+        xteve_is_running: "{{ _xteve_status.container.State.Running }}"
+  tags:
+    - xteve
+    - xteve_install
+  when: not _xteve_state.exists

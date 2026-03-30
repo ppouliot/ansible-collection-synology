@@ -1,0 +1,17 @@
+---
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+
+# UDI ISY994 Admin Console
+isy994_admin_console_enable: false
+isy994_address: 192.168.1.1
+isy994_adminconsole_image:  "automationgeek/isy994-adminconsole-docker:latest"
+
+# UDI Polyglot Node Server
+polyglotv2_enable: false
+polyglot_port: 3000
+polyglot_repo: https://github.com/UniversalDevicesInc/polyglot-v2.git
+isy994_password: P@ssw0rd
+mongo_image:  mongo:latest
+

@@ -1,0 +1,193 @@
+---
+
+- name: "Squid: Check if Squid container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/squid"
+  register: _squid_config_dir
+  tags:
+    - squid
+    - squid_root
+
+- name: "Squid: Filesystem Directories"
+  block:
+    - name: Create Squid Daemon Directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0755"
+        recurse: true
+      with_items:
+          - "{{ container_directory_root }}/squid"
+          - "{{ container_directory_root }}/squid/cache"
+          - "{{ container_directory_root }}/squid/logs"
+      tags:
+        - squid
+        - squid_root
+      when:
+        - _squid_config_dir is defined
+        - not _squid_config_dir.stat.exists
+
+- name: "Squid: Check if Squid container is running"
+  community.general.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: squid
+  register: _squid_state
+  tags:
+    - squid
+
+- name: "Squid: set facts"
+  ansible.builtin.set_fact:
+    squid_port: "{{ squid_port }}"
+    squid_config_dir: "{{ _squid_config_dir }}"
+    cacheable: true
+  tags:
+    - squid
+
+- name: "Squid: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: Create squid container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: squid
+        image: "{{ squid_container_image }}"
+# putting the network behind gluetun
+        networks:
+          - name: synology-docker-network
+        network_mode: container:gluetun
+# ports on docker host
+#       ports:
+#         - "{{ squid_port }}:34400"
+        pull: true
+        restart_policy: unless-stopped
+        state: started
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        volumes:
+          - "{{ container_directory_root }}/squid:/home/squid/conf:rw"
+          - "{{ container_directory_root }}/squid/tmp:/tmp/squid:rw"
+      register: _squid_status
+    - name: "Squid: Set squid_is_running fact"
+      ansible.builtin.set_fact:
+        squid_is_running: "{{ _squid_status.container.State.Running }}"
+        cacheable: true
+
+    - name: "wait for squid to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ squid_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+
+    - name: Stop squid
+      community.docker.docker_container:
+        name: squid
+        state: stopped
+
+#    - name: Add squid.conf
+#      template:
+#        src: squid.conf.j2
+#        dest: "{{ container_directory_root }}/squid/squid.conf"
+#        owner: "{{ user_puid }}"
+#        group: "{{ group_pgid }}"
+#        mode: 0770
+
+    - name: "Squid: Start Squid container"
+      community.docker.docker_container:
+        name: squid
+        state: started
+
+    - name: "wait for squid to come up and test with new password"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ squid_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+  when: not _squid_state.exists
+  tags:
+    - squid
+    - squid_install
+
+  # End Block
+
+
+
+- name: "Squid: restart and set facts"
+  block:
+    - name: restart squid container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: squid
+        image: "{{ squid_container_image }}"
+# putting the network behind gluetun
+        networks:
+          - name: synology-docker-network
+        network_mode: container:gluetun
+#       ports:
+#         - "{{ squid_port }}:34400"
+        pull: true
+        restart: true
+        restart_policy: unless-stopped
+        state: started
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        volumes:
+          - "{{ container_directory_root }}/squid:/home/squid/conf:rw"
+          - "{{ container_directory_root }}/squid/tmp:/tmp/squid:rw"
+      register: _squid_status
+    - name: "Squid: Set squid_is_running fact"
+      ansible.builtin.set_fact:
+        squid_is_running: "{{ _squid_status.container.State.Running }}"
+        cacheable: yes
+
+    - name: "wait for squid to come up and test with new password"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ squid_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+  when: _squid_state.exists
+  tags:
+    - squid
+  # end block
+
+- name: "Squid: Set Facts"
+  ansible.builtin.set_fact:
+    squid_config_dir: "{{ _squid_config_dir }}"
+    squid_port: "{{ squid_port }}"
+    cacheable: true
+  tags: 
+    - squid
+    - squid_facts
+
+
+- name: "Squid: print facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "squid_port: {{ squid_port }}"
+    - "squid_config_dir: {{ squid_config_dir }}"
+    - "squid_is_running: {{ squid_is_running }}"
+  tags:
+    - squid
+    - squid_facts
+
+- name: Re-read facts after adding custom fact
+  ansible.builtin.setup:
+    filter: ansible_local

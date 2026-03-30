@@ -1,0 +1,58 @@
+---
+- name: "DockerProxy: Check if DockerProxy container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: dockerproxy
+  register: _dockerproxy_state
+  tags:
+    - dockerproxy
+
+- name: "DockerProxy: INSTALLATION AND CONFIGURATION BLOCK"
+  block: 
+    - name: Create dockerproxy container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: dockerproxy
+        image: "{{ dockerproxy_container_image }}"
+        pull: true
+        retries: 5
+        delay: 30
+        volumes:
+          - "/var/run/docker.sock:var/run/docker.sock:ro"
+        env:
+          CONTAINERS: "1"
+          POST: "0"
+        state: started
+        restart_policy: unless-stopped
+      register: _dockerproxy_status
+    - name: "DockerProxy: Set dockerproxy_is_running fact"
+      ansible.builtin.set_fact:
+        dockerproxy_is_running: "{{ _dockerproxy_status.container.State.Running }}"
+  tags:
+    - dockerproxy
+    - dockerproxy_install
+  when: not _dockerproxy_state.exists
+# End Block
+- name: "DockerProxy: PUll AND RESTART CONTAINER"
+  block:
+    - name: "DockerProxy: pull and restart container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: dockerproxy
+        image: "{{ dockerproxy_container_image }}"
+        pull: true
+        retries: 5
+        delay: 30
+        volumes:
+          - "/var/run/docker.sock:var/run/docker.sock:ro"
+        env:
+          CONTAINERS: "1"
+          POST: "0"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _dockerproxy_status
+  tags:
+    - dockerproxy
+    - dockerproxy_restart
+  when: _dockerproxy_state.exists

@@ -1,0 +1,13 @@
+---
+# Prowlarr
+homarr_container_image: "ghcr.io/homarr-labs/homarr:latest"
+
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+homarr_port: "7575"
+sonarr_api_key: "{{ ansible_facts['sonarr_api_key'] }}"
+radarr_api_key: "{{ ansible_facts['radarr_api_key'] }}"
+lidarr_api_key: "{{ ansible_facts['lidarr_api_key'] }}"
+readarr_api_key: "{{ ansible_facts['lidarr_api_key'] }}"

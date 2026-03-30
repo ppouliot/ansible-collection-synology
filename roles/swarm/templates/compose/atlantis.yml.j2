@@ -1,0 +1,100 @@
+version: "3.8"
+services:
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: "${{ synology_dsm_username }}
+      MINIO_ROOT_PASSWORD: "${{ synology_dsm_password }}"
+    volumes:
+      - "{{ container_directory_root }}/minio:/data"
+    command: server /data --console-address ":9001"
+    deploy:
+      labels:
+        - "diun.enable=true"
+    networks:
+      - atlantis
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379" # Expose Redis port if needed for external access or debugging
+    volumes:
+      - "{{ container_directory_root }}/redis:/data"
+    deploy:
+      labels:
+        - "diun.enable=true"
+    networks:
+      - atlantis
+  atlantis:
+    image: "{{ atlantis_container_image }}"
+    ports:
+      - "4141:4141"
+    volumes:
+      - "{{ container_directory_root }}/atlantis:/var/atlantis"
+      - "{{ container_directory_root }}/atlantis/.ssh:/home/atlantis/.ssh:ro"
+    environment:
+      ATLANTIS_UID: "{{ user_puid }}"
+      ATLANTIS_GID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+    # ATLANTIS_CONFIG: /config/atlantis.yml
+    # ATLANTIS_DATA_DIR: /data
+      ATLANTIS_ATLANTIS_URL: https://atlantis.${DOMAINNAME}
+      ATLANTIS_PORT: 4141
+      # openfofu
+      # --------
+      ATLANTIS_DEFAULT_TF_DISTRIBUTION: "opentofu"
+      # GITHUB
+      # ------
+      # https://docs.github.com/en/rest/reactions/reactions?apiVersion=2022-11-28#about-reactions
+      ATLANTIS_EMOJI_REACTION: eyes
+      ATLANTIS_ENABLE_DIFF_MARKDOWN_FORMAT: true
+      ATLANTIS_GH_TOKEN: "${{ github_personal_access_token }}" 
+      ATLANTIS_REPO_ALLOWLIST: ${ATLANTIS_REPO_ALLOWLIST}
+      # LOGGING
+      # -------
+      ATLANTIS_LOG_LEVEL: debug
+      # REDIS
+      # -----
+      ATLANTIS_LOCKING_DB_TYPE: redis
+      ATLANTIS_REDIS_PASSWORD: "${{ synology_dsm_password }}"
+      ATLANTIS_REDIS_HOST: "${{ ansible_default_ipv4.address }}"
+      ATLANTIS_REDIS_PORT: 6379
+      ATLANTIS_REDIS_DB: 0
+      ATLANTIS_REDIS_INSECURE_SKIP_VERIFY: false
+      ATLANTIS_REDIS_TLS_ENABLED: false
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+    deploy:
+      labels:
+        - "diun.enable=true"
+      placement:
+        constraints: 
+          - node.role == manager
+    networks:
+      - atlantis
+    depends_on:
+      - redis # Ensure Redis starts before Atlantis
+      - minio # Ensure Redis starts before Atlantis
+
+  cloudflared:
+    image:  "{{ cloudflared_container_image }}"
+    command: "tunnel run --token {{ cloudflared_api_token }}"
+    pull: yes
+    privileged: yes
+    volumes:
+      - "{{ container_directory_root }}/cloudflared:/home/nonroot/.cloudflared"
+    environment:
+      CLOUDFLARED_UID: "{{ user_puid }}"
+      CLOUDFLARED_GID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+    deploy:
+      labels:
+        - "diun.enable=true"
+    networks:
+      - atlantis
+
+networks:
+  atlantis:

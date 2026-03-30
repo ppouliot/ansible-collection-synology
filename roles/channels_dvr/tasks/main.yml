@@ -1,0 +1,102 @@
+---
+
+- name: "Channels-dvr: Check if Channels-dvr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/channels-dvr"
+  register: _channels-dvr_config_dir
+  tags:
+    - channels-dvr
+    - channels-dvr_root
+
+- name: "Channels-dvr: Check if Channels-dvr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/channels-dvr/recordings"
+  register: _channels-dvr_recording_dir
+  tags:
+    - channels-dvr
+    - channels-dvr_recordings
+
+- name: "Channels-dvr: Check if Channels-dvr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/channels-dvr/config"
+  register: _channels-dvr_recording_dir
+  tags:
+    - channels-dvr
+    - channels-dvr_config
+
+
+- name: "Channels-dvr: Create directories to house channels-dvr data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/channels-dvr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _channels-dvr_config_dir
+  tags:
+    - channels-dvr
+    - channels-dvr_root
+  when:
+    - _channels-dvr_config_dir is defined
+    - not _channels-dvr_config_dir.stat.exists
+
+
+- name: "Create directories to house deluge and nzbget config files and data"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0755"
+    recurse: true
+  become: true
+  with_items:
+    - "{{ container_directory_root }}/channels-dvr/config"
+    - "{{ container_directory_root }}/channels-dvr/recordings"
+
+- name: "Channels-dvr: Check if Channels-dvr container is running"
+  community.general.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: channels-dvr
+  register: _channels-dvr_state
+  tags:
+    - channels-dvr
+
+- name: "Channels-dvr: set facts"
+  ansible.builtin.set_fact:
+    channels-dvr_port: "{{ channels-dvr_port }}"
+    channels-dvr_config_dir: "{{ _channels-dvr_config_dir }}"
+  tags:
+    - channels-dvr
+
+- name: "CHANNELS-DVR: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: Create channels-dvr container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: channels-dvr
+        image: "{{ channels-dvr_container_image }}"
+        pull: true
+        retries: 5
+        delay: 30
+        ports:
+          - "{{ channels-dvr_port }}":"{{ channels-dvr_port }}"
+        volumes:
+          - "{{ container_directory_root }}/channels-dvr/config:/config"
+          - "{{ container_directory_root }}/channels-dvr/recordings:/shares/DVR"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart_policy: unless-stopped
+      register: _channels-dvr_status
+    - name: "Channels-dvr: Set channels-dvr_is_running fact"
+      ansible.builtin.set_fact:
+        channels-dvr_is_running: "{{ _channels-dvr_status.container.State.Running }}"
+  tags:
+    - channels-dvr
+    - channels-dvr_install
+  when: not _channels-dvr_state.exists

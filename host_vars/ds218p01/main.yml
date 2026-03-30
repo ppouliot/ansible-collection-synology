@@ -1,0 +1,23 @@
+---
+# =============================================================================
+# host_vars/ds218p01/main.yml
+# ds218p01 — 172.19.0.41, model TBD (discovered at runtime), lynn-ma (172.19.0.x)
+# =============================================================================
+
+# ── Connection ────────────────────────────────────────────────────────────────
+ansible_host: 172.19.0.41
+ansible_user: beavis
+ansible_password: "{{ vault_ansible_password }}"
+ansible_become_password: "{{ vault_ansible_password }}"
+
+# ── Bootstrap auth ────────────────────────────────────────────────────────────
+synology_bootstrap_dsm_url: "http://172.19.0.41:5000"
+synology_bootstrap_username: beavis
+synology_bootstrap_password: "{{ vault_ansible_password }}"
+
+# ── ds218p01-specific overrides ─────────────────────────────────────────────────
+synology_docker_enable: true
+synology_upptime_enable: false
+
+# ── Facts ─────────────────────────────────────────────────────────────────────
+synology_facts_dir: "{{ playbook_dir }}/facts"

@@ -1,0 +1,49 @@
+---
+- name: Configure auto-block
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.Security.AutoBlock
+    api_version: "1"
+    api_method: set
+    request_method: POST
+    api_params:
+      enable: "{{ synology_bootstrap_autoblock_enabled | to_json }}"
+      attemptcount: "{{ synology_bootstrap_autoblock_attempts }}"
+      withinminutes: "{{ synology_bootstrap_autoblock_within }}"
+    ignore_api_errors: [119]
+  register: _configure_autoblock
+
+- name: Debug — Configure auto-block
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Configure auto-block"
+  when: _configure_autoblock.ignored_api_error is defined and _configure_autoblock.ignored_api_error == 119
+
+- name: Configure DSM security (HTTPS redirect + TLS)
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.Security.DSM
+    api_version: "1"
+    api_method: set
+    request_method: POST
+    api_params:
+      force_https: "true"
+    ignore_api_errors: [119]
+  register: _configure_dsm_security
+
+- name: Debug — Configure DSM security (HTTPS redirect + TLS)
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Configure DSM security (HTTPS redirect + TLS)"
+  when: _configure_dsm_security.ignored_api_error is defined and _configure_dsm_security.ignored_api_error == 119
+
+- name: Note — tasks requiring DSM admin account
+  ansible.builtin.debug:
+    msg: >
+      Some tasks in this file require the built-in DSM admin account (SYNO.Core.* write APIs).
+      If you see 'ignored_api_error: 119', enable the admin account temporarily or run bootstrap
+      as admin. Affected APIs: SYNO.Core.Package.Feed, SYNO.Core.FileServ.*, SYNO.Core.Share,
+      SYNO.Core.Region.NTP, SYNO.Core.Security.*, SYNO.Core.Terminal, SYNO.Core.User.Home
+  when: false  # informational only — never actually runs

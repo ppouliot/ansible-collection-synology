@@ -1,0 +1,28 @@
+---
+
+- name: "Create directories to house hdhomerun data"
+  file:
+    path: "{{ container_directory_root }}/hdhomerun"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+
+- name: Create hdhomerun recording engine container
+  docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: hdhomerun
+    image: timstephens24/hdhomerun_dvr:latest
+    pull: yes
+    network_mode: host
+    volumes:
+      - "{{ container_directory_root }}/hdhomerun:/hdhomerun"
+      - "/etc/localtime:/etc/localtime:ro"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK_SET: "022"
+    restart_policy: unless-stopped
+

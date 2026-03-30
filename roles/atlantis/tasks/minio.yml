@@ -1,0 +1,38 @@
+--- 
+- name: "Atlantis: S3 (Minio) Terraform State Backend"
+  block:
+    - name: Create Minio Daemon Directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0755"
+        recurse: true
+      with_items:
+          - "{{ container_directory_root }}/atlantis/minio"
+          - "{{ container_directory_root }}/atlantis/minio/data/"
+          - "{{ container_directory_root }}/atlantis/minio/config/"
+    - name: minio
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: minio
+        hostname: "{{ minio_hostname }}"
+        image: "{{ minio_container_image }}"
+        networks:
+          - name: synology-docker-network
+        network_mode: container:atlantis
+        pull: true
+        retries: 5
+        delay: 30
+        state: started
+        command: "server /data"
+        restart_policy: unless-stopped
+        volumes:
+          - "{{ container_directory_root }}/atlantis/minio/config:/root/.minio"
+          - "{{ container_directory_root }}/atlantis/minio/data:/data"
+        ports:
+          - "{{ minio_port }}:9000"
+        env:
+          MINIO_ACCESS_KEY: "{{ minio_access_key }}"
+          MINIO_SECRET_KEY: "{{ minio_secret_key }}"

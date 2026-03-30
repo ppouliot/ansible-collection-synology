@@ -1,0 +1,17 @@
+---
+
+- name: "Exportarr: Include sonarr exportarr tasks"
+  ansible.builtin.include_tasks: sonarr.yml
+  when: sonarr_api_key
+
+- name: "Exportarr: Include radarr exportarr tasks"
+  ansible.builtin.include_tasks: radarr.yml
+  when: radarr_api_key
+
+- name: "Exportarr: Include lidarr exportarr tasks"
+  ansible.builtin.include_tasks: lidarr.yml
+  when: lidarr_api_key
+
+- name: "Exportarr: Include prowlarr exportarr tasks"
+  ansible.builtin.include_tasks: prowlarr.yml
+  when: prowlarr_api_key

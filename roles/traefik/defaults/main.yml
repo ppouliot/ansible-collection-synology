@@ -1,0 +1,22 @@
+---
+# defaults file for traefik
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: "/volume1/docker"
+
+traefik_container_image: "traefik:latest"
+traefik_container_name: "traefik"
+traefik_http_port: "8080"
+traefik_https_port: "8443"
+traefik_dashboard_port: "8500"
+
+# Let's Encrypt CA Servers
+# Note: staging is set by default
+# caServer: https://acme-v02.api.letsencrypt.org/directory # prod (default)
+# caServer: https://acme-staging-v02.api.letsencrypt.org/directory # staging
+letsencrypt_ca_server: "https://acme-staging-v02.api.letsencrypt.org/directory"
+
+# Cloudflare Information
+cloudflare_email: bwyane@youremail.com
+cloudflare_api_token: abcdefghijklmnopqrsuvwxyz

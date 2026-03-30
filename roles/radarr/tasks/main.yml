@@ -1,0 +1,214 @@
+---
+- name: "Radarr: Check if Radarr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/radarr"
+  register: _radarr_config_dir
+  tags:
+    - radarr
+    - radarr_root
+- name: "Radarr: Create directories to house radarr data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/radarr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _radarr_config_dir
+  tags:
+    - radarr
+    - radarr_root
+  when:
+    - _radarr_config_dir is defined
+    - not _radarr_config_dir.stat.exists
+- name: "Radarr: Check if Radarr container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: radarr
+  register: _radarr_state
+  tags:
+    - radarr
+- name: "Radarr: Container installation and configuration block"
+  block:
+    - name: "Radarr: Create radarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: radarr
+        image: "{{ radarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/radarr:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/movies:/movies"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _radarr_status
+    - name: "Radarr: Set radarr_is_running fact"
+      ansible.builtin.set_fact:
+        radarr_is_running: "{{ _radarr_status.container.State.Running }}"
+    - name: "Radarr: Wait for Radarr HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ radarr_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Radarr: Stop Radarr container"
+      community.docker.docker_container:
+        name: radarr
+        state: stopped
+    - name: "Radarr: Add sql script RadarrRootFolders.sql"
+      ansible.builtin.template:
+        src: RadarrRootFolders.sql.j2
+        dest: "{{ container_directory_root }}/radarr/RadarrRootFolders.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Radarr: import RadarrRootFolders.sql into radarr.db"
+      ansible.builtin.command:
+        cmd: 'sqlite3 radarr.db ".read RadarrRootFolders.sql"'
+        chdir: "{{ container_directory_root }}/radarr"
+      changed_when: true
+    - name: "Radarr: Add sql script RadarrDownloadClients.sql"
+      ansible.builtin.template:
+        src: RadarrDownloadClients.sql.j2
+        dest: "{{ container_directory_root }}/radarr/RadarrDownloadClients.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Radarr: Check for RadarrDownloadClients"
+      ansible.builtin.command:
+        cmd: 'sqlite3 radarr.db "SELECT Name FROM DownloadClients;"'
+        chdir: "{{ container_directory_root }}/radarr"
+      register: _radarr_download_clients
+      changed_when: false
+    - name: "Radarr: show _radarr_download_clients"
+      ansible.builtin.debug:
+        msg: "{{ _radarr_download_clients }}"
+    - name: "Radarr: import RadarrDownloadClients.sql into radarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 radarr.db ".read RadarrDownloadClients.sql"'
+        chdir: "{{ container_directory_root }}/radarr"
+      when: _radarr_download_clients.stdout == ""
+      changed_when: true
+    - name: "Radarr: Add sql script RadarrIndexers.sql"
+      ansible.builtin.template:
+        src: RadarrIndexers.sql.j2
+        dest: "{{ container_directory_root }}/radarr/RadarrIndexers.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Radarr: Check for RadarrIndexers"
+      ansible.builtin.command:
+        cmd: 'sqlite3 radarr.db "SELECT Name FROM Indexers;"'
+        chdir: "{{ container_directory_root }}/radarr"
+      register: _radarr_indexers
+      changed_when: false
+    - name: "Radarr: show _radarr_indexers"
+      ansible.builtin.debug:
+        msg: "{{ _radarr_indexers }}"
+    - name: "Radarr: import RadarrIndexers.sql into radarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 radarr.db ".read RadarrIndexers.sql"'
+        chdir: "{{ container_directory_root }}/radarr"
+      when: _radarr_indexers.stdout == ""
+      changed_when: true
+    - name: "Radarr: Add sql script RadarrNotifications.sql"
+      ansible.builtin.template:
+        src: RadarrNotifications.sql.j2
+        dest: "{{ container_directory_root }}/radarr/RadarrNotifications.sql"
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0770"
+    - name: "Radarr: Check for RadarrNotifications"
+      ansible.builtin.command:
+        cmd: 'sqlite3 radarr.db "SELECT Name FROM Notifications;"'
+        chdir: "{{ container_directory_root }}/radarr"
+      register: _radarr_notifications
+      changed_when: false
+    - name: "Radarr: show _radarr_notifications"
+      ansible.builtin.debug:
+        msg: "{{ _radarr_notifications }}"
+    - name: "Radarr: import RadarrNotifications.sql into radarr.db"  # noqa empty-string-compare
+      ansible.builtin.command:
+        cmd: 'sqlite3 radarr.db ".read RadarrNotifications.sql"'
+        chdir: "{{ container_directory_root }}/radarr"
+      when: _radarr_notifications.stdout == ""
+      changed_when: true
+    - name: "Radarr: Start Radarr container"
+      community.docker.docker_container:
+        name: radarr
+        state: started
+ # End Block
+  tags:
+    - radarr
+    - radarr_install
+  when: not _radarr_state.exists
+- name: "Radarr: Container pull and restart"
+  block:
+    - name: "Radarr: pull and restart radarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: radarr
+        image: "{{ radarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/radarr:/config"
+          - "{{ container_directory_root }}/downloads:/downloads"
+          - "{{ container_directory_root }}/movies:/movies"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart_policy: unless-stopped
+      register: _radarr_status
+  when: _radarr_state.exists
+  tags:
+    - radarr
+    - radarr_restart
+- name: "Radarr: Read Radarr API key"
+  community.general.xml:
+    path: /volume1/docker/radarr/config.xml
+    xpath: /Config/ApiKey
+    content: text
+  register: radarr_xml
+  retries: 3
+  delay: 10
+  until: radarr_xml is not failed
+- name: "Radarr: Show api key variable"
+  ansible.builtin.debug:
+    var: radarr_xml.matches[0].ApiKey
+- name: "Radarr: Set api key fact"
+  ansible.builtin.set_fact:
+    radarr_api_key: "{{ radarr_xml.matches[0].ApiKey }}"
+    cacheable: true
+  tags:
+    - radarr
+    - radarr_facts
+- name: "Radarr: Show Facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "radarr_config_dir: {{ _radarr_config_dir }}"
+    - "radarr_api_key {{ radarr_api_key }}"
+  tags:
+    - radarr
+    - radarr_facts
+
+- name: "Radarr: Re-read local facts"
+  ansible.builtin.setup:
+    filter: ansible_local

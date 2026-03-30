@@ -1,0 +1,4 @@
+---
+# defaults file for ombi
+ombi_container_image: "lscr.io/linuxserver/ombi:latest"
+ombi_exposed_port: 3579

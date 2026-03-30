@@ -1,0 +1,270 @@
+---
+
+- name: check for gluetun directory
+  stat:
+    path: "{{ container_directory_root }}/gluetun"
+  register: _gluetun_config_dir
+  tags:
+    - gluetun
+
+- name: "Create directories to house gluetun data"
+  file:
+    path: "{{ container_directory_root }}/gluetun"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _gluetun_config_dir
+  tags:
+    - gluetun
+  when:
+    - _gluetun_config_dir is defined
+    - not _gluetun_config_dir.stat.exists
+
+- name: Check if gluetun is running
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: gluetun
+  tags:
+    - gluetun
+  register: _gluetun_state
+
+- name: Set Gluetun facts
+  set_fact:
+    gluetun_config_dir: "{{ _gluetun_config_dir }}"
+    gluetun_state: "{{ _gluetun_state }}"
+  tags:
+    - gluetun
+
+- block:
+    - name: Add script to start tun driver automatically on Synology
+      template:
+        src: start_tun.sh.j2
+        dest: /usr/local/etc/rc.d/start_tun.sh
+        owner: "root"
+        group: "root"
+        mode: 0770
+      register: _gluetun_driver
+
+#    - name: Load Tun Driver Manually as notify doesn't work.
+#      command:
+#        cmd: insmod /usr/lib/modules/tun.ko
+#      register: _gluetun_driver_manual_loading
+
+    - name: "gluetun: print gluetun driver"
+      debug:
+        msg: "{{ _gluetun_driver }}"
+
+#    - debug:
+#        msg: "{{ _gluetun_driver_manual_loading }}"
+#
+    - name: Gluetun Driver Loaded
+      set_fact:
+        # gluetun_is_running: "{{ _gluetun_status.ansible_facts.docker_container.State.Running }}"
+        # gluetun_is_running: "{{ _gluetun_status.docker_container.State.Running }}"
+        gluetun_driver: "{{ _gluetun_driver }}"
+#    - name: Gluetun Driver Manually Loaded
+#      set_fact:
+#        gluetun_driver_manual_loading: "{{ _gluetun_driver_manual_loading }}"
+    - name: "gluetun: print gluetun_driver"
+      debug:
+        msg: "{{ gluetun_driver }}"
+
+#    - debug:
+#        msg: "{{ gluetun_driver_manual_loading }}"
+
+- block:
+    - name: Launch GlueTun VPN Container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: gluetun
+        image: qmcgaw/gluetun
+        capabilities:
+          - NET_ADMIN
+        network_mode: bridge
+        tty: true
+        detach: true
+        pull: true
+        volumes:
+          - "{{ container_directory_root }}/gluetun:/gluetun"
+          - "/dev/net/tun:/dev/net/tun"
+        env:
+          VPN_SERVICE_PROVIDER: "{{ gluetun_vpn_service_provider }}"
+          VPN_TYPE: "{{ gluetun_vpn_type }}"
+          OPENVPN_USER: "{{ gluetun_openvpn_user }}"
+          OPENVPN_PASSWORD: "{{ gluetun_openvpn_password }}"
+          SERVER_REGIONS: "{{ gluetun_openvpn_regions }}"
+          FIREWALL_OUTBOUND_SUBNETS: "{{ gluetun_firewall_outbound_subnets }}"
+    #     PIA_ENCRYPTION: "normal"
+    #     OPENVPN_CIPHER: "BF-CBC"
+        ports:
+          - "8888:8888/tcp"
+          - "8388:8388/tcp"
+          - "8388:8388/udp"
+          # Deluge
+          - "8112:8112"
+          # NzbGet
+          - "6789:6789"
+          # NzbHydra2
+          - "5076:5076"
+          # Jackett
+          - "9117:9117"
+          # Bazarr
+          - "6767:6767"
+          # Sonarr
+          - "8989:8989"
+          # Radarr
+          - "7878:7878"
+          # Couchpotato
+          - "5050:5050"
+          # Mylar
+          - "8090:8090"
+          # Lidarr
+          - "8686:8686"
+          # Readarr
+          - "8787:8787"
+          # headphones
+          - "8181:8181"
+          # tvheadend
+          # - "9981:9981"
+          # - "9982:9982"
+          - "{{ gluetun_control_port }}:8000/tcp"
+        restart_policy: always
+        state: started
+      register: _gluetun_status
+
+    - name: "gluetun: print gluetun_status"
+      debug:
+        msg: "{{ _gluetun_status }}"
+
+    - name: Gluetun is Running
+      set_fact:
+        # gluetun_is_running: "{{ _gluetun_status.ansible_facts.docker_container.State.Running }}"
+        # gluetun_is_running: "{{ _gluetun_status.docker_container.State.Running }}"
+        gluetun_is_running: "{{ _gluetun_status.container.State.Running }}"
+    - name: "Gluetun: print gluetun_is_running fact"
+      debug:
+        msg: "{{ gluetun_is_running }}"
+    - name: test vpn connection and generate fact
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: gluetun-connection-test
+        image: alpine:latest
+        detach: false
+        network_mode: container:gluetun
+        entrypoint: sh
+        command: -c 'wget -qO- https://ipinfo.io'
+    - name: dump gluetun-connect-test log
+      command:
+        cmd: /usr/local/bin/docker logs gluetun-connection-test
+      become: true
+      register: _gluetun_connection
+    - name: gluetun connection info
+      set_fact:
+        gluetun_connection: "{{ _gluetun_connection }}"
+    - name: "gluetun: print gluetun_connection"
+      debug:
+        msg: "{{ _gluetun_connection }}"
+  # End Block
+  tags:
+    - gluetun
+  when: not _gluetun_state.exists
+- block:
+    - name: Restart GlueTun VPN
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: gluetun
+        image: qmcgaw/gluetun
+        capabilities:
+          - NET_ADMIN
+        network_mode: bridge
+        tty: true
+        detach: true
+        pull: true
+        volumes:
+          - "{{ container_directory_root }}/gluetun:/gluetun"
+          - "/dev/net/tun:/dev/net/tun"
+        env:
+          VPNSP: "{{ gluetun_vpn_service_provider }}"
+          USER: "{{ gluetun_openvpn_user }}"
+          PASSWORD: "{{ gluetun_openvpn_password }}"
+          REGION: "{{ gluetun_openvpn_region }}"
+          EXTRA_SUBNETS: "{{ gluetun_extra_subnets }}"
+    #     PIA_ENCRYPTION: "normal"
+    #     OPENVPN_CIPHER: "BF-CBC"
+        ports:
+          - "8888:8888/tcp"
+          - "8388:8388/tcp"
+          - "8388:8388/udp"
+          # Deluge
+          - "8112:8112"
+          # NzbGet
+          - "6789:6789"
+          # NzbHydra2
+          - "5076:5076"
+          # Jackett
+          - "9117:9117"
+          # Bazarr
+          - "6767:6767"
+          # Sonarr
+          - "8989:8989"
+          # Radarr
+          - "7878:7878"
+          # Couchpotato
+          - "5050:5050"
+          # Mylar
+          - "8090:8090"
+          # Lidarr
+          - "8686:8686"
+          # Readarr
+          - "8787:8787"
+          # headphones
+          - "8181:8181"
+          # Prowlarr
+          - "9696:9696"
+          # tvheadend
+          # - "9981:9981"
+          # - "9982:9982"
+          - "{{ gluetun_control_port }}:8000/tcp"
+      # restart: true
+        restart_policy: always
+        state: started
+      register: _gluetun_status
+    - name: "gluetun: print gluetun status"
+      debug:
+        msg: "{{ _gluetun_status }}"
+    - name: "set gluetun_is_running fact"
+      set_fact:
+        gluetun_is_running: "{{ _gluetun_status.container.State.Running }}"
+    - name: test vpn connection and generate fact
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: gluetun-connection-test
+        image: alpine:latest
+        detach: false
+        network_mode: container:gluetun
+        entrypoint: sh
+        command: -c 'wget -qO- https://ipinfo.io'
+    - name: dump gluetun-connect-test log
+      command:
+        cmd: /usr/local/bin/docker logs gluetun-connection-test
+      become: true
+      register: _gluetun_connection
+    - name: gluetun connection info
+      set_fact:
+        gluetun_connection: "{{ _gluetun_connection }}"
+    - name: "gluetun: print _gluetun_connection"
+      debug:
+        msg: "{{ _gluetun_connection }}"
+  when: _gluetun_state.exists
+- name: "gluetun: show facts"
+  debug:
+    msg: "{{ item }}"
+  loop:
+    - "gluetun_config_dir: {{ gluetun_config_dir }}"
+    - "gluetun_state: {{ gluetun_state }}"
+    - "gluetun_is_running: {{ gluetun_is_running }}"
+    - "gluetun_connection: {{ gluetun_connection }}"
+  tags:
+    - gluetun

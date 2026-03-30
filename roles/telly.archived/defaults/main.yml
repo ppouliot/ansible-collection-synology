@@ -1,0 +1,11 @@
+---
+# defaults file for telly
+telly_container_image: "tellytv/telly:dev-ffmpeg"
+telly_port: "6077"
+telly_streams: "1"
+telly_m3u_playlist: "http://myprovider.com/playlist.m3u"
+telly_epg_xml: "http://myprovider.com/epg.xml"
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

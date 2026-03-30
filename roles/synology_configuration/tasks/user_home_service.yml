@@ -1,0 +1,18 @@
+---
+# Enable user home service on Synology DSM
+# Note: --home-on was removed in DSM 7.x
+# User homes are enabled via DSM API in synology_bootstrap (SYNO.Core.User.Home)
+# This task ensures home directories are created for existing users via SSH
+
+- name: Check if user home directories exist
+  ansible.builtin.stat:
+    path: "/var/services/homes/{{ ansible_user }}"
+  register: _user_home_stat
+
+- name: Create home directories for local users
+  become: true
+  ansible.builtin.command: "{{ synology_synouser }} --create_homes local"
+  register: _home_create_result
+  changed_when: _home_create_result.rc == 0
+  failed_when: false
+  when: not _user_home_stat.stat.exists

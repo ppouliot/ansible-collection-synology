@@ -1,0 +1,135 @@
+---
+- name: "Homarr: Check if Homarr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/homarr"
+  register: _homarr_config_dir
+  tags:
+    - homarr
+    - homarr_root
+- name: "Homarr: Create directories to house homarr data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/homarr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _homarr_config_dir
+  tags:
+    - homarr
+    - homarr_root
+  when:
+    - _homarr_config_dir is defined
+    - not _homarr_config_dir.stat.exists
+- name: "Homarr: Check if Homarr container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: homarr
+  register: _homarr_state
+  tags:
+    - homarr
+- name: "Homarr: Container installation and configuration block"
+  block:
+    - name: "Homarr: Create homarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: homarr
+#       hostname: homarr
+        image: "{{ homarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/homarr:/config"
+          - /var/run/docker.sock:/var/run/docker.sock
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        restart_policy: unless-stopped
+      register: _homarr_status
+    - name: "Homarr: Set homarr_is_running fact"
+      ansible.builtin.set_fact:
+        homarr_is_running: "{{ _homarr_status.container.State.Running }}"
+    - name: "Homarr: Wait for Homarr HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ homarr_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Homarr: Stop Homarr container"
+      community.docker.docker_container:
+        name: homarr
+        state: stopped
+# CONFIGURATION TASKS GO HERE
+    - name: "Homarr: Start Homarr container"
+      community.docker.docker_container:
+        name: homarr
+        state: started
+ # End Block
+  tags:
+    - homarr
+    - homarr_install
+  when: not _homarr_state.exists
+- name: "Homarr: Container pull and restart"
+  block:
+    - name: "Homarr: Create homarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: homarr
+        image: "{{ homarr_container_image }}"
+#        networks:
+#         - name: synology-docker-network
+        pull: true
+#       network_mode: container:gluetun
+        network_mode: bridge
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+          - "{{ container_directory_root }}/homarr:/appdata"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _homarr_status
+  when: _homarr_state.exists
+- name: "Homarr: Read Homarr API key"
+  community.general.xml:
+    path: /volume1/docker/homarr/config.xml
+    xpath: /Config/ApiKey
+    content: text
+  register: homarr_xml
+- name: "Homarr: Set api key variable"
+  ansible.builtin.debug:
+    var: homarr_xml.matches[0].ApiKey
+- name: "Homarr: Set Facts"
+  ansible.builtin.set_fact:
+    homarr_config_dir: "{{ _homarr_config_dir }}"
+    homarr_port: "{{ homarr_port }}"
+    homarr_api_key: "{{ homarr_xml.matches[0].ApiKey }}"
+    cacheable: true
+  tags:
+    - homarr
+    - homarr_facts
+- name: "Homarr: Show Facts"
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop:
+    - "homarr_config_dir: {{ _homarr_config_dir }}"
+    - "homarr_port: {{ homarr_port }}"
+    - "homarr_api_key {{ homarr_api_key }}"
+  tags:
+    - homarr
+    - homarr_facts
+
+- name: Re-read facts after adding custom fact
+  ansible.builtin.setup:
+    filter: ansible_local

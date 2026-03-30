@@ -1,0 +1,40 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE [tabs] (
+					[id]	INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+					[order]	INTEGER,
+					[category_id]	INTEGER,
+					[name]	TEXT,
+					[url]	TEXT,
+					[url_local]	TEXT,
+					[default]	INTEGER,
+					[enabled]	INTEGER,
+					[group_id]	INTEGER,
+					[group_id_max] INTEGER DEFAULT '0',
+					[add_to_admin]	INTEGER DEFAULT '0',
+					[image]	TEXT,
+					[type]	INTEGER,
+					[splash]	INTEGER,
+					[ping]		INTEGER,
+					[ping_url]	TEXT,
+					[timeout]	INTEGER,
+					[timeout_ms]	INTEGER,
+					[preload]	INTEGER
+				);
+INSERT INTO tabs VALUES(1,1,0,'Settings','api/v2/page/settings',NULL,0,1,1,0,0,'fontawesome::cog',0,NULL,NULL,NULL,NULL,NULL,NULL);
+INSERT INTO tabs VALUES(2,2,0,'Homepage','api/v2/page/homepage',NULL,0,1,4,0,0,'fontawesome::home',0,NULL,NULL,NULL,NULL,NULL,NULL);
+INSERT INTO tabs VALUES(3,3,0,'Sonarr','http://10.1.1.30:8989','',0,1,4,0,1,'plugins/images/tabs/sonarr.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(4,4,0,'Radarr','http://10.1.1.30:7878','',0,1,4,0,1,'plugins/images/tabs/radarr.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(5,5,0,'LIdarr','http://10.1.1.30:8686','',0,1,4,0,1,'plugins/images/tabs/lidarr.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(6,6,0,'Prowlarr','http://101.1.30:9696','',0,1,4,0,1,'plugins/images/tabs/prowlarr.png',2,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(7,7,0,'Bazarr','http://10.1.1.30:6767','',0,1,4,0,1,'plugins/images/tabs/bazarr.png',1,0,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(8,8,0,'Deluge','http:10.1.1.30:8112','',0,1,4,0,1,'plugins/images/tabs/deluge.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(9,9,0,'Nzbget','http://10.1.1.30:6789','',0,1,4,0,1,'plugins/images/tabs/nzbget.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(10,10,0,'Tautulli','http://10.1.1.30:8182','',0,1,4,0,1,'plugins/images/tabs/tautulli.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(11,11,0,'Ombi','http://10.1.1.30:3579','',0,1,4,0,1,'plugins/images/tabs/ombi.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(12,12,0,'Plex','http://10.1.1.30:32400','',0,1,4,0,1,'plugins/images/tabs/plex.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(13,13,0,'Overseerr','http://10.1.1.30:5055','',0,1,4,0,1,'plugins/images/tabs/overseerr.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(14,14,0,'Readarr','http://10.1.1.30:8787','',0,1,4,0,1,'plugins/images/tabs/readarr.png',1,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(15,15,0,'Unifi','https://10.1.1.1','',0,1,4,0,1,'plugins/images/tabs/unifi.png',2,NULL,NULL,'',0,0,NULL);
+INSERT INTO tabs VALUES(16,16,0,'Threadfin','http://10.1.1.30:34400/web','',0,1,4,0,1,'plugins/images/tabs/threadfin.png',1,NULL,NULL,'',0,0,NULL);
+COMMIT;

@@ -1,0 +1,109 @@
+---
+# =============================================================================
+# Phase 2 — SSH-based configuration
+# Order matters: Python must be upgraded before any module-based tasks run.
+# =============================================================================
+
+# ── Step 1: SynoCommunity feed ────────────────────────────────────────────────
+- name: Add Syno Community package repository
+  ansible.builtin.include_tasks:
+    file: syno_community.yml
+  tags: syno_community
+
+# ── Step 2: Python interpreter bootstrap (raw — works on any Python version) ──
+- name: Python interpreter bootstrap
+  block:
+    - name: Find installed Python 3.x interpreter (raw)
+      ansible.builtin.raw: find /var/packages -name 'python3*' -type f 2>/dev/null | grep '/bin/python3' | sort -V | tail -1
+      register: _syno_python_path
+      changed_when: false
+      check_mode: false
+
+    - name: Set ansible_python_interpreter to discovered Python
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "{{ _syno_python_path.stdout | trim | default(synology_python_interpreter_path) }}"
+      when: (_syno_python_path.stdout | default('') | trim) | length > 0
+
+    - name: Gather facts using upgraded Python
+      ansible.builtin.setup:
+  # End Block
+
+# ── Step 3: Gather facts ──────────────────────────────────────────────────────
+- name: Gather facts about the synology
+  block:
+    - name: Synology Device Facts
+      ansible.builtin.include_tasks:
+        file: facts/device.yml
+      tags: device_facts
+    - name: Synology IPInfo Facts
+      ansible.builtin.include_tasks:
+        file: facts/ipinfo.yml
+      tags: ipinfo_facts
+    - name: Synology package facts
+      ansible.builtin.include_tasks:
+        file: facts/packages.yml
+      tags: package_facts
+  # End Block
+
+# ── Step 4: SSH keys and critical tooling ────────────────────────────────────
+- name: SSH configuration and Install Critical Tooling
+  block:
+    - name: Install ssh keys from url for more secure remote management
+      ansible.builtin.include_tasks:
+        file: ssh_keys.yml
+      tags: ssh_keys
+    - name: Install Git
+      ansible.builtin.include_tasks:
+        file: git.yml
+      tags: Git
+  # End Block
+
+# ── Step 5: User home ─────────────────────────────────────────────────────────
+- name: User home configuration
+  block:
+    - name: Enable user home service
+      ansible.builtin.include_tasks:
+        file: user_home_service.yml
+      tags: user_home
+  # End Block
+
+# ── Step 6: DNS ───────────────────────────────────────────────────────────────
+- name: DNS configuration
+  block:
+    - name: Integrating cloudflare dynamic DDNS scripts into native DDNS
+      when: synology_cloudflare_ddns_enable | default(false)
+      ansible.builtin.include_tasks:
+        file: cloudflare/ddns.yml
+      tags: cloudflare_ddns_scripts
+  # End Block
+
+# ── Step 7: Packages, pip, Docker ─────────────────────────────────────────────
+- name: Configure native package management, python-pip, and docker
+  block:
+    - name: Install native Synology packages (fallback — prefer synology_bootstrap_package_list for API install)
+      when: synology_package_list is defined
+      ansible.builtin.include_tasks:
+        file: packages.yml
+      tags: synology_packages
+
+    - name: Install(Upgrade) pip for python package management using Synology shipped python
+      ansible.builtin.include_tasks:
+        file: pip.yml
+      tags: Pip
+
+    - name: Install and configure ContainerManager(Docker) and docker-compose
+      when: synology_docker_enable | default(false)
+      ansible.builtin.include_tasks:
+        file: container_manager.yml
+      tags: ContainerManager
+
+    - name: Install shell alias commands for docker containers
+      when: synology_docker_enable | default(false)
+      ansible.builtin.include_tasks:
+        file: cmd_aliases.yml
+
+    - name: Install Uptime (Interoperable)
+      when: synology_upptime_enable | default(false)
+      ansible.builtin.include_tasks:
+        file: upptime.yml
+  # End Block

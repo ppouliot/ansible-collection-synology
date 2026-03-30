@@ -1,0 +1,105 @@
+---
+# =============================================================================
+# synology_bootstrap role defaults
+# DSM 7.x API-only bootstrap — no SSH required at start
+# =============================================================================
+
+# Auth
+synology_bootstrap_dsm_url: "http://{{ inventory_hostname }}:5000"
+synology_bootstrap_username: "admin"
+synology_bootstrap_password: ""
+synology_bootstrap_validate_certs: false
+
+# DSM API admin account — must be the built-in admin or a user with full API privileges.
+# SYNO.Core.* write APIs require this level of access regardless of group membership.
+# Defaults to the same as bootstrap_username/password if not set explicitly.
+synology_bootstrap_admin_username: "{{ synology_bootstrap_username }}"
+synology_bootstrap_admin_password: "{{ synology_bootstrap_password }}"
+
+# Feature flags (opt-in)
+synology_bootstrap_enable_user_home: true
+synology_bootstrap_user_home_location: "/volume1"
+synology_bootstrap_user_home_recycle_bin: false
+
+synology_bootstrap_enable_ssh: true
+synology_bootstrap_ssh_port: 22
+# SSH security level: normal (medium) or high
+# high = stronger ciphers/MACs only (aes256, sha2, curve25519, no legacy)
+synology_bootstrap_ssh_security_level: high
+
+synology_bootstrap_enable_smb: true
+synology_bootstrap_smb_workgroup: "WORKGROUP"
+synology_bootstrap_enable_nfs: false
+synology_bootstrap_enable_afp: false
+synology_bootstrap_enable_ftp: false
+synology_bootstrap_enable_sftp: false
+
+synology_bootstrap_enable_notifications: false
+synology_bootstrap_enable_security: false
+synology_bootstrap_enable_network: false
+
+# Users to create (list of dicts)
+# - name: beavis
+#   password: "changeme"
+#   groups: [administrators, users]
+#   email: ""
+#   description: ""
+synology_bootstrap_users: []
+
+# Group membership overrides (list of dicts)
+# - group: administrators
+#   members: [beavis, peter]
+synology_bootstrap_group_members: []
+
+# Package feeds (list of dicts)
+synology_bootstrap_package_feeds:
+  - name: SynoCommunity
+    feed: https://packages.synocommunity.com
+
+# Packages: NOT handled here — DSM API blocks installation (error 103).
+# Use synology_package_list in the synology_configuration role (SSH phase).
+synology_bootstrap_packages: []  # unused, kept for backwards compat
+
+# Packages to install via DSM API (Phase 1)
+# These are installed before SSH is available
+# Requires primary admin account
+# Python package to install. Set to 'auto' to query DSM and pick the latest
+# available pythonXYY package. Set explicitly (e.g. 'python314') to pin a version.
+synology_bootstrap_python_package: python314
+
+# Community packages (SynoCommunity feed) — installed with type 1 via DSM API
+# These packages will return error 103 with type 0 (official only)
+synology_bootstrap_community_packages:
+  - "{{ synology_bootstrap_python_package }}"
+  - byobu
+
+synology_bootstrap_package_list:
+  - __python__
+  - Git
+  - byobu
+  - Tailscale
+  - Git
+  - byobu
+  - Tailscale
+
+# Shared folders to create (list of dicts)
+# - name: data
+#   volume: /volume1
+#   desc: "Data share"
+#   permissions: []
+synology_bootstrap_shares: []
+
+# NTP servers
+synology_bootstrap_ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+
+# DDNS records (list of dicts)
+# - hostname: nas.example.com
+#   provider: Cloudflare
+synology_bootstrap_ddns_records: []
+
+# Security
+synology_bootstrap_autoblock_enabled: true
+synology_bootstrap_autoblock_attempts: 10
+synology_bootstrap_autoblock_within: 5

@@ -1,0 +1,167 @@
+---
+  
+- name: "Create directories to house deluge and nzbget config files and data"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+  with_items:
+    - "{{ container_directory_root }}/downloads"
+    - "{{ container_directory_root }}/downloads/torrents"
+    - "{{ container_directory_root }}/downloads/nzb"
+    - "{{ container_directory_root }}/downloads/blackhole"
+    - "{{ container_directory_root }}/downloads/tmp"
+    - "{{ container_directory_root }}/comics"
+#   - "{{ container_directory_root }}/tv"
+#   - "{{ container_directory_root }}/movies"
+#   - "{{ container_directory_root }}/music"
+
+
+- name: VPN
+  block:
+    - name: Gluetun
+      import_role:
+        name: ppouliot.synology.gluetun
+      tags: [ gluetun ]
+
+  # End Block
+  tags:
+    - htpc
+    - htpc.vpn
+
+
+- name: Downloaders
+  block:
+    - name: Deluge
+      import_role:
+        name: ppouliot.synology.deluge
+      tags: [ deluge ]
+
+    - name: NZBGet
+      import_role:
+        name: ppouliot.synology.nzbget
+      tags: [ nzbget ]
+
+  # End Block
+  tags:
+    - htpc
+    - htpc.downloaders
+  when: gluetun_is_running == true
+
+
+- name: Indexers
+  block:
+    - name: Jackett
+      import_role:
+        name: ppouliot.synology.jackett
+      tags: [ jackett ]
+
+    - name: NZBHydra2
+      import_role:
+        name: ppouliot.synology.nzbhydra2
+      tags: [ nzbhydra2 ]
+
+  # End Block
+  tags:
+    - htpc
+    - htpc.indexers
+  when: gluetun_is_running == true
+
+
+- name: Tv and Movie
+  block:
+
+    - name: CouchPotato
+      import_role:
+        name: ppouliot.synology.couchpotato
+      tags: [ couchpotato ]
+      when: enable_couchpotato == true
+
+    - name: Sonarr
+#     include_tasks: sonarr.yml
+      import_role:
+        name: ppouliot.synology.sonarr
+      tags: [ sonarr ]
+
+
+    - name: Radarr
+#     include_tasks: radarr.yml
+      import_role:
+        name: ppouliot.synology.radarr
+      tags: [ radarr ]
+
+
+  # End Block
+  #when: gluetun_state.exists
+  tags:
+    - htpc
+    - htpc.tv
+    - htpc.movies
+  when:
+    - gluetun_is_running == true
+    - deluge_is_running == true
+    - nzbget_is_running == true
+
+- name: Subtitles
+  block:
+
+    - name: Bazarr
+      import_role:
+        name: ppouliot.synology.bazarr
+      tags: [ bazarr ]
+  tags:
+    - htpc
+    - htpc.subtitles
+  when:
+    - gluetun_is_running == true
+
+- name: Music
+  block:
+
+    - name: Lidarr
+      import_role:
+        name: ppouliot.synology.lidarr
+      tags: [ lidarr ]
+      when: enable_lidarr == true
+
+    - name: Headphones
+      import_role:
+        name: ppouliot.synology.headphones
+      tags: [ headphones ]
+      when: enable_headphones == true
+
+  # End Block
+  when: 
+    - gluetun_is_running == true
+    - deluge_is_running == true
+    - nzbget_is_running == true
+
+- name: Htpcmanager
+  import_role:
+    name: ppouliot.synology.htpcmanager
+  tags: [ htpcmanager ]
+
+- name: Ebooks and Comics
+  block: 
+
+    - name: Readarr
+      import_role:
+        name: ppouliot.synology.readarr
+      tags: [ readarr ]
+      when: enable_readarr == true
+
+    - name: Mylar
+      import_role:
+        name: ppouliot.synology.mylar
+      tags: [mylar ]
+      when: enable_mylar == true
+
+  # End Block
+  when: 
+    - gluetun_is_running == true
+    - deluge_is_running == true
+    - nzbget_is_running == true
+

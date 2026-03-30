@@ -1,0 +1,21 @@
+---
+- name: Enable user home service
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.User.Home
+    api_version: "1"
+    api_method: set
+    request_method: POST
+    api_params:
+      enable: "true"
+      location: "{{ synology_bootstrap_user_home_location }}"
+      enable_recycle_bin: "{{ synology_bootstrap_user_home_recycle_bin | to_json }}"
+    ignore_api_errors: [119]
+  register: _user_home_result
+
+- name: Warn if user home service API requires elevated privileges
+  ansible.builtin.debug:
+    msg: "WARNING: SYNO.Core.User.Home requires built-in admin account. Skipped (error 119 — insufficient permissions). Enable manually in DSM Control Panel → User & Group → Advanced → User Home."
+  when: _user_home_result.ignored_api_error is defined and _user_home_result.ignored_api_error == 119

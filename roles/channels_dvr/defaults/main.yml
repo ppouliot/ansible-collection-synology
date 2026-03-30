@@ -1,0 +1,8 @@
+---
+# channels-dvr
+channels-dvr_container_image: "fancybits/channels-dvr:tve"
+channels-dvr_port: 8089
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker

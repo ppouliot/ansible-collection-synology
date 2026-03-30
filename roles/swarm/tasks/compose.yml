@@ -1,0 +1,98 @@
+---
+- name: Deploy compose files
+  hosts: swarm
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  vars:
+    default_timezone: "America/New_York"
+    container_directory_root: "/volume1/docker"
+    synology_docker_cli: "/usr/local/bin/docker"
+    cloudflared_container_image: "cloudflare/cloudflared:latest"
+    cloudflared_api_token: "{{ cloudflared_api_token }}"
+    atlantis_container_image: " ghcr.io/runatlantis/atlantis"
+
+  pre_tasks:
+  collections:
+  roles:
+  tasks:
+    - name: "Create directories to house docker-compose and swarmpit config files and data"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ user_puid }}"
+        group: "{{ group_pgid }}"
+        mode: "0755"
+        recurse: true
+      become: true
+      with_items:
+        - "{{ container_directory_root }}/atlantis"
+        - "{{ container_directory_root }}/cloudflared"
+        - "{{ container_directory_root }}/compose"
+        - "{{ container_directory_root }}/diun"
+        - "{{ container_directory_root }}/dozzle"
+        - "{{ container_directory_root }}/ergo"
+        - "{{ container_directory_root }}/gitlab"
+        - "{{ container_directory_root }}/gitlab/config"
+        - "{{ container_directory_root }}/gitlab/data"
+        - "{{ container_directory_root }}/gitlab/logs"
+        - "{{ container_directory_root }}/minio"
+        - "{{ container_directory_root }}/netbootxyz"
+        - "{{ container_directory_root }}/netbootxyz/config"
+        - "{{ container_directory_root }}/netbootxyz/assets"
+        - "{{ container_directory_root }}/redis/"
+        - "{{ container_directory_root }}/swarmpit/"
+        - "{{ container_directory_root }}/swarmpit/db-data"
+        - "{{ container_directory_root }}/swarmpit/influx-data"
+
+    - name: place docker-compose.yml
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/{{ item }}.yml.j2"
+        dest: "{{ container_directory_root }}/compose/{{ item }}.yml"
+        owner: root
+        group: root
+        mode: 0600
+      loop:
+        - "socket-proxy"
+        - "atlantis"
+        - "diun"
+        - "dozzle"
+        - "atlantis"
+        - "ergo"
+#       - "cloudflared"
+        - "netbootxyz"
+        - "swarm-cronjob"
+        - "swarmpit"
+        - "openvox-server"
+
+
+- name: Deploy compose files
+  hosts: swarm[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  vars:
+    default_timezone: "America/New_York"
+    container_directory_root: "/volume1/docker"
+    synology_docker_cli: "/usr/local/bin/docker"
+  pre_tasks:
+  collections:
+  roles:
+  tasks:
+    - name: "Deploy stacks"
+      community.docker.docker_stack:
+        docker_cli: "{{ synology_docker_cli }}"
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        state: present
+        name: "{{ item }}"
+        compose:
+          - "{{ container_directory_root }}/compose/{{ item }}.yml"
+      loop:
+#       - "socket-proxy"
+#       - "cloudflared"
+        - "diun"
+        - "dozzle"
+        - "netbootxyz"
+        - "swarm-cronjob"
+        - "swarmpit"
+#       - "openvox-server"

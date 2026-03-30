@@ -1,0 +1,10 @@
+---
+- name: Plex Stack
+  block: 
+    - name: Plex
+      include_tasks: plex.yml
+    - name: Tautulli
+      include_tasks: tautulli.yml
+    - name: Ombi
+      include_tasks: ombi.yml
+  # End Block

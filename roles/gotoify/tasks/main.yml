@@ -1,0 +1,125 @@
+---
+- name: "Gotoify: Check if Gotoify container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/gotoify"
+  register: _gotoify_config_dir
+  tags:
+    - gotoify
+    - gotoify_root
+- name: "Gotoify: Create directories to house gotoify data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/gotoify"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _gotoify_config_dir
+  tags:
+    - gotoify
+    - gotoify_root
+  when:
+    - _gotoify_config_dir is defined
+    - not _gotoify_config_dir.stat.exists
+- name: "Gotoify: Check if Gotoify container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: gotoify
+  register: _gotoify_state
+  tags:
+    - gotoify
+
+- name: "Gotoify: set facts"
+  ansible.builtin.set_fact:
+    gotoify_port: "{{ gotoify_port }}"
+    gotoify_config_dir: "{{ _gotoify_config_dir }}"
+  tags:
+    - gotoify
+- name: "Gotoify: INSTALLATION AND CONFIGURATION BLOCK"
+  block: 
+    - name: Create gotoify container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: gotoify
+        image: "{{ gotoify_container_image }}"
+        pull: true
+        ports:
+          - "{{ gotoify_port }}:80/tcp"
+        volumes:
+          - "{{ container_directory_root }}/gotoify:/app/data"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart_policy: unless-stopped
+      register: _gotoify_status
+    - name: "Gotoify: Set gotoify_is_running fact"
+      ansible.builtin.set_fact:
+        gotoify_is_running: "{{ _gotoify_status.container.State.Running }}"
+    - name: "Gotoify: Wait for Gotoify HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ gotoify_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Gotoify: Stop gotoify container"
+      community.docker.docker_container:
+        name: gotoify
+        state: stopped
+    - name: "gotoify: Start gotoify container"
+      community.docker.docker_container:
+        name: gotoify
+        state: started
+  tags:
+    - gotoify
+    - gotoify_install
+  when: not _gotoify_state.exists
+# End Block
+- name: "Gotoify: PUll AND RESTART CONTAINER"
+  block:
+    - name: "Gotoify: pull and restart container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: gotoify
+        image: "{{ gotoify_container_image }}"
+        pull: true
+        ports:
+          - "{{ gotoify_port }}:80"
+        volumes:
+          - "{{ container_directory_root }}/gotoify:/app/data"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _gotoify_status
+  tags:
+    - gotoify
+    - gotoify_restart
+  when: _gotoify_state.exists
+
+
+
+#    - name: "Gotoify: Lookup gotoify apikey from config.ini"
+#      debug:
+#        var: "{{ lookup('ini', 'apikey', section='authentication', file='config.ini') }}"
+#      args:
+#        chdir: "{{ container_directory_root }}/gotoify/config/config.ini') }}"
+#      register: _gotoify_api_key
+
+#    - name: "Gotoify: set apikey fact"
+#      ansible.builtin.set_fact:
+#        gotoify_api_key: "{{ _gotoify_api_key }}"
+#        cacheable: true
+      
+#    - name: "Gotoify print apikey fact"
+#      debug:
+#        msg: "gotoify_api_key: {{ gotoify_api_key }}"

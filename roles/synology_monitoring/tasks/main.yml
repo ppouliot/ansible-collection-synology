@@ -1,0 +1,52 @@
+---
+- name: Use pip to install python influxdb libaries
+  ansible.builtin.pip:
+    name: ['influxdb', 'requests']
+# DSM6
+#   executable: /usr/local/bin/pip
+    executable: /bin/pip
+    extra_args: "-U"
+- name: create influxdb database for synology-monitoring
+  community.general.influxdb_database:
+    hostname: "{{ influxdb_server }}"
+    database_name: Synology
+    username: unifipoller
+    password: "{{ influxdb_password }}"
+    ssl: false
+    validate_certs: false
+#   state: absent
+- name: Get synology-monitoring  # noqa git-latest
+  ansible.builtin.git:
+    repo: https://github.com/kernelkaribou/synology-monitoring.git
+    repo: "{{ synology_monitoring_repo }}"
+    dest: "/volume1/synology-monitoring"
+    clone: true
+    update: true
+    force: true
+    version: "HEAD"
+- name: set script permissions
+  ansible.builtin.file:
+    path: "/volume1/synology-monitoring/synology_snmp.sh"
+    owner: root
+    group: root
+    mode: '0755'
+- name: Set InfluxDB Server
+  ansible.builtin.lineinfile:
+    path: /volume1/synology-monitoring/synology_snmp.sh
+    regexp: '^influxdb_host\=\"127\.0\.0\.1\"'
+    line: "influxdb_host=\"{{ influxdb_server }}\""
+- name: Set InfluxDB database
+  ansible.builtin.lineinfile:
+    path: /volume1/synology-monitoring/synology_snmp.sh
+    regexp: '^influxdb_name\=\"Synology\"'
+    line: 'influxdb_name="Synology"'
+- name: Set InfluxDB User
+  ansible.builtin.lineinfile:
+    path: /volume1/synology-monitoring/synology_snmp.sh
+    regexp: '^influxdb_user\=\"\"'
+    line: 'influxdb_user="unifipoller"'
+- name: Set InfluxDB Password
+  ansible.builtin.lineinfile:
+    path: /volume1/synology-monitoring/synology_snmp.sh
+    regexp: '^influxdb_pass\=\"\"'
+    line: "influxdb_pass=\"{{ influxdb_password }}\""

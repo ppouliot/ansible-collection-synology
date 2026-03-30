@@ -1,0 +1,53 @@
+---
+- name: Configure NTP servers
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.Region.NTP
+    api_version: "1"
+    api_method: set
+    request_method: POST
+    api_params:
+      ntpserver: "{{ synology_bootstrap_ntp_servers | join(',') }}"
+    ignore_api_errors: [119]
+  when: synology_bootstrap_ntp_servers | length > 0
+  register: _configure_ntp
+
+- name: Debug — Configure NTP servers
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Configure NTP servers"
+  when: _configure_ntp.ignored_api_error is defined and _configure_ntp.ignored_api_error == 119
+
+- name: Configure DDNS records
+  synology_dsm_api_request:
+    base_url: "{{ synology_bootstrap_dsm_url }}"
+    validate_certs: "{{ synology_bootstrap_validate_certs }}"
+    login_sid: "{{ synology_bootstrap_sid }}"
+    api_name: SYNO.Core.DDNS.Record
+    api_version: "1"
+    api_method: add
+    request_method: POST
+    api_params:
+      hostname: "{{ item.hostname }}"
+      provider: "{{ item.provider }}"
+    ignore_api_errors: [103, 119]
+  loop: "{{ synology_bootstrap_ddns_records }}"
+  loop_control:
+    label: "{{ item.hostname }}"
+  when: synology_bootstrap_ddns_records | length > 0
+  register: _configure_ddns
+
+- name: Debug — Configure DDNS records
+  ansible.builtin.debug:
+    msg: "SKIPPED (insufficient permissions — needs DSM admin account): Configure DDNS records"
+  when: _configure_ddns.ignored_api_error is defined and _configure_ddns.ignored_api_error == 119
+
+- name: Note — tasks requiring DSM admin account
+  ansible.builtin.debug:
+    msg: >
+      Some tasks in this file require the built-in DSM admin account (SYNO.Core.* write APIs).
+      If you see 'ignored_api_error: 119', enable the admin account temporarily or run bootstrap
+      as admin. Affected APIs: SYNO.Core.Package.Feed, SYNO.Core.FileServ.*, SYNO.Core.Share,
+      SYNO.Core.Region.NTP, SYNO.Core.Security.*, SYNO.Core.Terminal, SYNO.Core.User.Home
+  when: false  # informational only — never actually runs

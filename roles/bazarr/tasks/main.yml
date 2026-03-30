@@ -1,0 +1,262 @@
+---
+- name: "Bazarr: Check if Bazarr container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/bazarr"
+  register: _bazarr_config_dir
+  tags:
+    - bazarr
+    - bazarr_root
+- name: "Bazarr: Create directories to house bazarr data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/bazarr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: true
+  register: _bazarr_config_dir
+  tags:
+    - bazarr
+    - bazarr_root
+  when:
+    - _bazarr_config_dir is defined
+    - not _bazarr_config_dir.stat.exists
+- name: "Bazarr: Check if Bazarr container is running"
+  community.docker.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: bazarr
+  register: _bazarr_state
+  tags:
+    - bazarr
+
+- name: "Bazarr: set facts"
+  ansible.builtin.set_fact:
+    bazarr_port: "{{ bazarr_port }}"
+    bazarr_config_dir: "{{ _bazarr_config_dir }}"
+  tags:
+    - bazarr
+- name: "Bazarr: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: "Bazarr: Create bazarr container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: bazarr
+        image: "{{ bazarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/bazarr:/config"
+          - "{{ container_directory_root }}/tv:/tv"
+          - "{{ container_directory_root }}/movies:/movies"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart_policy: unless-stopped
+      register: _bazarr_status
+    - name: "Bazarr: Set bazarr_is_running fact"
+      ansible.builtin.set_fact:
+        bazarr_is_running: "{{ _bazarr_status.container.State.Running }}"
+    - name: "Bazarr: Wait for Bazarr HTTP port to come up"
+      ansible.builtin.uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ bazarr_port }}"
+        method: GET
+        status_code: 200
+      register: _result
+      until: _result.status == 200
+      retries: 30  # retry X times
+      delay: 60  # pause for X sec b/w each call
+    - name: "Bazarr: Stop bazarr container"
+      community.docker.docker_container:
+        name: bazarr
+        state: stopped
+    - name: "Bazarr: set bazarr_port in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: general
+        option: port
+        value: "{{ bazarr_port }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set path_mappings in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: general
+        option: path_mappings
+        value:
+          - "/tv/"
+          - "/config/"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set use_sonarr in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: general
+        option: use_sonarr
+        value: "True"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set use_radarr in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: general
+        option: use_radarr
+        value: "True"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set path_mappings_movie in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: general
+        option: path_mappings_movie
+        value:
+          - "/movies/"
+          - "/config/"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set enabled_providers in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: general
+        option: enabled_providers
+        value:
+          - "opensubtitles"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set anti_captcha_provider in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: general
+        option: anti_captcha_provider
+        value: death-by-captcha
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set ip of sonarr in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: sonarr
+        option: ip
+        value: "{{ ansible_default_ipv4.address }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set sonarr port in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: sonarr
+        option: port
+        value: "{{ sonarr_port }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set sonarr apikey in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: sonarr
+        option: apikey
+        value: "{{ sonarr_api_key }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set ip of radarr in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: radarr
+        option: ip
+        value: "{{ ansible_default_ipv4.address }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set radarr_port in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: radarr
+        option: port
+        value: "{{ radarr_port }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set radarr_api_key in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: radarr
+        option: apikey
+        value: "{{ radarr_api_key }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set opensubtitles_username in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: opensubtitles
+        option: username
+        value: "{{ opensubtitles_username }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set opensubtitles_password in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: opensubtitles
+        option: password
+        value: "{{ opensubtitles_password }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set opensubtitles_vip_member in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: opensubtitles
+        option: vip
+        value: "{{ opensubtitles_vip_member | capitalize }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set deathbycaptcha_username in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: deathbycaptcha
+        option: username
+        value: "{{ deathbycaptcha_username }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: set deathbycaptcha_password in config.ini"
+      community.general.ini_file:
+        path: "{{ container_directory_root }}/bazarr/config/config.ini"
+        section: deathbycaptcha
+        option: password
+        value: "{{ deathbycaptcha_password }}"
+        mode: '0775'
+        backup: yes
+    - name: "Bazarr: Start bazarr container"
+      community.docker.docker_container:
+        name: bazarr
+        state: started
+  tags:
+    - bazarr
+    - bazarr_install
+  when: not _bazarr_state.exists
+# End Block
+- name: "Bazarr: PULL AND RESTART CONTAINER"
+  block:
+    - name: "Bazarr: pull and restart container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: bazarr
+        image: "{{ bazarr_container_image }}"
+        networks:
+          - name: synology-docker-network
+        pull: true
+        network_mode: container:gluetun
+        volumes:
+          - "{{ container_directory_root }}/bazarr:/config"
+          - "{{ container_directory_root }}/tv:/tv"
+          - "{{ container_directory_root }}/movies:/movies"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+        state: started
+        restart: true
+        restart_policy: unless-stopped
+      register: _bazarr_status
+  tags:
+    - bazarr
+    - bazarr_restart
+  when: _bazarr_state.exists

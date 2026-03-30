@@ -1,0 +1,60 @@
+---
+# tasks file for overlay-reset
+
+- name: "Overlay-reset: Create directories to house overlay-reset config data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/overlay-reset"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: yes
+
+- name: "Overlay-reset: Create overlay-reset/config directory"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/overlay-reset/config"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+    recurse: yes
+
+- name: "Overlay-reset: Create overlay-reset/config/assets directory"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/overlay-reset/config/assets"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0775"
+
+- name: "Overlay-reset: Deploy overlay-reset config file"
+  ansible.builtin.template:
+    src: "config.yml.j2"
+    dest: "{{ container_directory_root }}/overlay-reset/config/config.yml"
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: "0600"
+  register: overlay_reset_config
+
+- name: "Overlay-reset: Run overlay-reset container"
+  block:
+    - name: "Overlay-reset: Run overlay-reset container"
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: overlay-reset
+        image: "{{ overlay_reset_container_image }}"
+        pull: yes
+        command: "tini -s python3 overlay-reset.py --"
+        volumes:
+          - "{{ container_directory_root }}/overlay-reset/config:/config:rw"
+          - "{{ container_directory_root }}/plex:/plex:rw"
+        env:
+          PLEX_META_MANAGER_UID: "{{ user_puid }}"
+          PLEX_META_MANAGER_GID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          PLEX_CLAIM: "{{ plex_claim_token }}"
+          ADVERTISE_IP: "http://{{ ansible_default_ipv4.address }}:32400"
+          PMM_DOCKER: "true"
+        restart_policy: unless-stopped
+        state: started
+  # End Block

@@ -1,0 +1,75 @@
+- name: Join remaining nodes to Docker Swarm
+  hosts: swarm:!swarm[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  vars:
+    container_directory_root: "/volume1/docker"
+    default_timezone: "America/New_York"
+    swarm_manager_ip: "{{ groups.swarm|
+                              map('extract', hostvars)|
+                              selectattr('swarm_role', 'eq', 'manager')|
+                              map(attribute='ansible_host')|first }}"
+    swarm_worker_ip: "{{ groups.swarm|
+                             map('extract', hostvars)|
+                             selectattr('swarm_role', 'eq', 'worker')|
+                             map(attribute='ansible_host')|list }}"
+  collections:
+  roles:
+  tasks:
+
+    - name: Check Docker Swarm status before attempting to join
+      ansible.builtin.shell: /usr/local/bin/docker info --format '{{ "{{.Swarm.LocalNodeState}}" }}'
+      register: _swarm_status
+      changed_when: false
+
+    - name: Check for swarm_manager_token
+      ansible.builtin.debug:
+        var: ansible_facts['swarm_manager_token']
+
+    - name: Join Swarm as manager
+      community.docker.docker_swarm:
+        state: join
+        advertise_addr: hostvars[host]['ansible_default_ipv4']['address']
+        join_token: "{{ ansible_facts['swarm_manager_token'] }}"
+        remote_addrs: "{{ ansible_facts['swarm_manager_ip'] }}:2377"
+      when: swarm_role == 'manager' and _swarm_status.stdout != "active"
+      register: swarm_join
+      changed_when: "'This node joined a swarm as a manager' in swarm_join.actions"
+
+    - name: Check for swarm_worker_token
+      ansible.builtin.debug:
+        var: ansible_facts['swarm_worker_token']
+
+    - name: Join Swarm as worker
+      community.docker.docker_swarm:
+        state: join
+        advertise_addr: hostvars[host]['ansible_default_ipv4']['address']
+        join_token: "{{ ansible_facts['swarm_worker_token'] }}"
+        remote_addrs: "{{ ansible_facts['swarm_manager_ip'] }}:2377"
+      when: swarm_role == 'worker' and _swarm_status.stdout != "active"
+      register: swarm_join
+      changed_when: "'New node is added to swarm cluster' in swarm_join.actions"
+
+    - name: "Check if the host is part of a swarm"
+      ansible.builtin.shell: /usr/local/bin/docker info --format '{{ "{{.Swarm.LocalNodeState}}" }}'
+      register: _swarm_status
+      changed_when: false
+
+    - name: set the swarm facts
+      ansible.builtin.set_fact:
+        swarm_status: "{{ _swarm_status.stdout }}"
+
+- name:  Verify swarm status
+  hosts: swarm
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  vars:
+  collections:
+  roles:
+  tasks:
+
+    - name: "Print Swarm Status"
+      ansible.builtin.debug:
+         var: swarm_status

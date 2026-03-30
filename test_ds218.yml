@@ -1,0 +1,6 @@
+---
+# =============================================================================
+# test_ds218.yml — DS218-specific integration test (legacy compat shim)
+# For multi-host testing, use: ansible-playbook -i <inventory> test_site.yml
+# =============================================================================
+- import_playbook: test_site.yml

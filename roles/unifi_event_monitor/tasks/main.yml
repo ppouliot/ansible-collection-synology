@@ -1,0 +1,39 @@
+---
+- name: Create Unifi-Event-Monitor directories
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/unifi-event-monitor"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+- name: "Unifi-Event-Monitor: Apprise configuration (.apprise)"
+  ansible.builtin.template:
+    dest: "{{ container_directory_root }}/unifi-event-monitor/apprise"
+    src: apprise.j2
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0640
+- name: "Unifi-Event-Monitor: Blacklist.txt"
+  ansible.builtin.template:
+    dest: "{{ container_directory_root }}/unifi-event-monitor/blacklist.txt"
+    src: blacklist.txt.j2
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0640
+- name: Run unifi-event-monitor container
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: unifi-event-monitor
+    image: "{{ unifi_event_monitor_container_image }}"
+    pull: true
+    retries: 5
+    delay: 30
+    env:
+      USERNAME: "{{ unifi_cloudkey_user }}"
+      PASSWORD: "{{ unifi_cloudkey_password }}"
+      HOST: "{{ unifi_cloudkey_url }}"
+    restart_policy: unless-stopped
+    volumes:
+      - "{{ container_directory_root }}/unifi-event-monitor/apprise:/app/.apprise"
+      - "{{ container_directory_root }}/unifi-event-monitor/blacklist.txt:/app/blacklist.txt"

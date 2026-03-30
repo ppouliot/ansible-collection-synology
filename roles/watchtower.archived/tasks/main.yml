@@ -1,0 +1,72 @@
+---
+
+- name: "Watchtower: Check if Watchtower container directory exists"
+  ansible.builtin.stat:
+    path: "{{ container_directory_root }}/watchtower"
+  register: _watchtower_config_dir
+  tags:
+    - watchtower
+    - watchtower_root
+
+- name: "Watchtower: Create directories to house overseer data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/watchtower"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: true
+  register: _watchtower_config_dir
+  tags:
+    - watchtower
+    - watchtower_root
+  when:
+    - _watchtower_config_dir is defined
+    - not _watchtower_config_dir.stat.exists
+
+- name: "Watchtower: Check if Watchtower container is running"
+  community.general.docker_container_info:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: watchtower
+  register: _watchtower_state
+  tags:
+    - watchtower
+
+- name: "Watchtower: set facts"
+  ansible.builtin.set_fact:
+    overseer_port: "{{ watchtower_port }}"
+    overseer_config_dir: "{{ _watchtower_config_dir }}"
+  tags:
+    - watchtower
+
+- name: "OVERSEERR: INSTALLATION AND CONFIGURATION BLOCK"
+  block:
+    - name: Create watchtower container
+      community.docker.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: watchtower
+        image: "{{ watchtower_container_image }}"
+        pull: true
+        retries: 5
+        delay: 30
+        networks:
+          - name: synology-docker-network
+        volumes:
+          - "/var/run/docker.sock:/var/run/docker.sock"
+          - "{{ container_directory_root }}/watchtower:/config"
+        env:
+          PUID: "{{ user_puid }}"
+          PGID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          UMASK: "022"
+          WATCHTOWER_CLEANUP: "true"
+        state: started
+        restart_policy: unless-stopped
+      register: _watchtower_status
+    - name: "Watchtower: Set watchtower_is_running fact"
+      ansible.builtin.set_fact:
+        overseer_is_running: "{{ _watchtower_status.container.State.Running }}"
+  tags:
+    - watchtower
+    - watchtower_install
+  when: not _watchtower_state.exists

@@ -1,0 +1,31 @@
+---
+- name: "Create directories to house prowlarr data"
+  file:
+    path: "{{ container_directory_root }}/prowlarr"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+- name: Create prowlarr container
+  community.docker.docker_container:
+    docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+    name: prowlarr
+    image: "{{ prowlarr_container_image }}"
+    networks:
+      - name: synology-docker-network
+    pull: yes
+    network_mode: container:gluetun
+#   network_mode: host
+#    ports:
+#      - "9696:9696"
+    volumes:
+      - "{{ container_directory_root }}/prowlarr:/config"
+    env:
+      PUID: "{{ user_puid }}"
+      PGID: "{{ group_pgid }}"
+      TZ: "{{ default_timezone }}"
+      UMASK: "022"
+    state: started
+    restart_policy: unless-stopped
+

@@ -1,0 +1,14 @@
+---
+# defaults file for jenkins
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+container_directory_root: /volume1/docker
+# controller
+jenkins_container_image: "jenkinsci/blueocean:latest"
+jenkins_enable: false
+
+# agent image
+jenkins_agent_enable: false
+jenkins_agent_container_image: "jenkins/ssh-agent:latest"
+jenkins_sshagent_pubkey:

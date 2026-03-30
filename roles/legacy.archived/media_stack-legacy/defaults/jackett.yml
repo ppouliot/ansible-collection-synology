@@ -1,0 +1,10 @@
+---
+
+# Jackett
+jackett_container_image: "ghcr.io/linuxserver/jackett:latest"
+jackett_api_key: "inkzri49p02ysobbug5ixowqldjfacaw",
+jackett_admin_password: null
+jackett_instance_id: "3snbx8swst5mzvzxm3bu1anl9svcvmasgispmolnbq8pf2e74e243cz3w9jz75s7"
+jackett_blackhole_dir: null
+# http://www.omdbapi.com/
+omdb_api_key: null

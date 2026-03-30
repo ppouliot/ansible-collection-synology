@@ -1,0 +1,73 @@
+---
+
+- name: check if ssdp service is running
+  ansible.builtin.command:
+    # DSM6
+    # cmd: /usr/syno/sbin/synoservice --status ssdp
+    cmd: /usr/syno/bin/synosystemctl get-active-status ssdp
+  register: synology_ssdp_service_status
+  ignore_errors: true
+  failed_when: synology_ssdp_service_status.rc != 0 or synology_ssdp_service_status.rc != 3
+    
+- ansible.builtin.debug:
+    var: synology_ssdp_service_status.stdout_lines[0]
+    
+- name: Disable ssdp service if enabled
+  ansible.builtin.command:
+    # DSM6
+    # cmd: /usr/syno/sbin/synoservicecfg --disable ssdp
+    cmd: /usr/syno/bin/synosystemctl disable ssdp
+  when: synology_ssdp_service_status.stdout_lines[0] == "Service [ssdp] status=[enable]"
+    
+- name: "Create directories to house plex config and transcode data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/plex"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+
+- name: "Create plex/transcode directory for transcode data"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/plex/transcode"
+    state: directory
+    owner: "{{ user_puid }}"
+    group: "{{ group_pgid }}"
+    mode: 0775
+    recurse: yes
+    
+- block:
+    - name: Run plex container
+      community.general.docker_container:
+        docker_host: tcp://{{ ansible_default_ipv4.address }}:2375
+        name: plex
+        image:  "{{ plex_container_image }}"
+        network_mode: host
+        pull: yes
+        privileged: yes
+    #   ports:
+    #     - 32400:32400/tcp
+    #     - 3005:3005/tcp
+    #     - 32469:32469/tcp
+    #     - 1900:1900/udp
+    #     - 32410:32410/udp
+    #     - 32412:32412/udp
+    #     - 32413:32413/udp
+    #     - 32414:32414/udp
+        devices:
+          - /dev/dri:/dev/dri
+        volumes:
+          - "{{ container_directory_root }}/plex:/config"
+          - "{{ container_directory_root }}/plex/transcode:/transcode"
+          - "{{ container_directory_root }}/tv:/data/tv"
+          - "{{ container_directory_root }}/movies:/data/movies"
+          - "{{ container_directory_root }}/music:/data/music"
+        env:
+          PLEX_UID: "{{ user_puid }}"
+          PLEX_GID: "{{ group_pgid }}"
+          TZ: "{{ default_timezone }}"
+          PLEX_CLAIM: "{{ plex_claim_token }}"
+          ADVERTISE_IP: "http://{{ ansible_default_ipv4.address }}:32400"
+        restart_policy: unless-stopped
+  # End Block

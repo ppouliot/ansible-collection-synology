@@ -1,0 +1,15 @@
+---
+# defaults file for pihole
+user_puid: "1000"
+group_pgid: "100"
+default_timezone: "America/New_York"
+
+# roles/synology/tasks/pihole.yml
+pihole_container_image: "pihole/pihole:latest"
+pihole_container_name: "pihole"
+pihole_webpassword: "P!H0l3"
+pihole_web_port: "9000"
+pihole_dns_1: "1.1.1.1"
+pihole_dns_2: ""
+pihole_temperature: "f"
+pihole_dnsmasq_listening: "local"

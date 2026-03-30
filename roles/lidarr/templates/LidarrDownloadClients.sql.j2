@@ -1,0 +1,6 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE IF NOT EXISTS "DownloadClients" ("Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "Enable" INTEGER NOT NULL, "Name" TEXT NOT NULL, "Implementation" TEXT NOT NULL, "Settings" TEXT NOT NULL, "ConfigContract" TEXT NOT NULL, "Priority" INTEGER NOT NULL DEFAULT 1, "RemoveCompletedDownloads" INTEGER NOT NULL DEFAULT 1, "RemoveFailedDownloads" INTEGER NOT NULL DEFAULT 1, "Tags" TEXT);
+INSERT INTO DownloadClients VALUES(1,1,'NZBGet','Nzbget',replace('{\n  "host": "10.1.1.30",\n  "port": 6789,\n  "useSsl": false,\n  "username": "nzbget",\n  "password": "M0nk3yHaus",\n  "musicCategory": "lidarr",\n  "recentMusicPriority": 0,\n  "olderMusicPriority": 0,\n  "addPaused": false\n}','\n',char(10)),'NzbgetSettings',1,1,1,'[]');
+INSERT INTO DownloadClients VALUES(2,1,'Deluge','Deluge',replace('{\n  "host": "10.1.1.30",\n  "port": 8112,\n  "useSsl": false,\n  "password": "M0nk3yHaus",\n  "musicCategory": "lidarr",\n  "recentMusicPriority": 0,\n  "olderMusicPriority": 0,\n  "addPaused": false\n}','\n',char(10)),'DelugeSettings',1,1,1,'[]');
+COMMIT;

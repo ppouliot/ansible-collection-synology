@@ -1,0 +1,15 @@
+[Unit]
+Description=Daemon for container terminal session
+IgnoreOnIsolate=true
+DefaultDependencies=no
+
+[Service]
+Type=forking
+PIDFile=/var/run/termd.pid
+ExecStart=/var/packages/Docker/target/termd/termd -d
+Restart=on-failure
+StartLimitBurst=5
+StartLimitInterval=10s
+TimeoutStopSec=20s
+
+[X-Synology]
