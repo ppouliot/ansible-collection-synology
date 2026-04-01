@@ -8,9 +8,17 @@
 ansible_remote_tmp: "/tmp/.ansible/tmp"
 ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ConnectTimeout=30 -o ServerAliveInterval=5 -o ServerAliveCountMax=60 -o TCPKeepAlive=yes -o ControlMaster=no"
 ansible_ssh_pipelining: true
-# Prefer python3.14 once installed; falls back to /bin/python3 on first run.
-# The dsm_configuration role bootstrap (Step 2) auto-discovers and overrides this at runtime.
-ansible_python_interpreter: /var/packages/Python3.14/target/bin/python3.14
+# Bootstrap interpreter — must be /bin/python3 (always present on DSM) for first run.
+# The dsm_configuration role (main.yml Step 2) uses `raw` to discover the highest
+# installed Python and overrides ansible_python_interpreter mid-play:
+#
+#   Layer 1 (dsm_api):       connection=local, no SSH, ansible_playbook_python
+#   Layer 2 (dsm_cfg init):  SSH, /bin/python3  ← this value
+#   Layer 3 (after raw):     SSH, discovered python (e.g. python3.9 → python3.14)
+#   Layer 4 (post-install):  SSH, /var/packages/Python3.14/target/bin/python3.14
+#
+# Do NOT change this to python3.14 — it breaks the first run before python314 is installed.
+ansible_python_interpreter: /bin/python3
 
 # ── Bootstrap (Phase 1 — DSM API) ────────────────────────────────────────────
 synology_dsm_api_validate_certs: false

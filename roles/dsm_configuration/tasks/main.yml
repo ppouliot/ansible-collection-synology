@@ -91,6 +91,23 @@
   when: synology_dsm_community_packages | default([]) | length > 0
   tags: community_packages
 
+# ── Step 8b: Re-discover Python after community packages install ──────────────
+# python314 may have just been installed — find the new highest interpreter
+# and promote it so all subsequent tasks run on the latest Python.
+- name: Re-discover highest installed Python interpreter
+  ansible.builtin.raw: find /var/packages -name 'python3*' -type f 2>/dev/null | grep '/bin/python3' | sort -V | tail -1
+  register: _syno_python_path_post
+  changed_when: false
+  check_mode: false
+
+- name: Promote ansible_python_interpreter to highest available Python
+  ansible.builtin.set_fact:
+    ansible_python_interpreter: "{{ _syno_python_path_post.stdout | trim }}"
+  when: (_syno_python_path_post.stdout | default('') | trim) | length > 0
+
+- name: Re-gather facts with promoted Python interpreter
+  ansible.builtin.setup:
+
 # ── Step 9: Packages, pip, Docker ─────────────────────────────────────────────
 - name: Configure native package management, python-pip, and docker
   block:
