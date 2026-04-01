@@ -2,36 +2,33 @@
 # =============================================================================
 # site.yml — Synology NAS provisioning
 #
-# IMPORTANT: This playbook requires discrete runs in order.
-# Ansible loads inventory vars at startup — host_vars written mid-run are
-# NOT visible until the next invocation. Each run builds the foundation
-# for the next.
+# Requires discrete runs in order. Each run builds the foundation for the next.
+#
+# RULE: Plays never write to inventory, host_vars, or group_vars.
+#       State is stored in the fact cache (.facts_cache/) and re-read via setup.
 #
 # ── Run order ────────────────────────────────────────────────────────────────
 #
 #   Run 1 — DSM API bootstrap (no SSH needed):
 #     ansible-playbook site.yml --tags dsm_api
-#     Result: SSH enabled, SynoCommunity feed added, feeds/groups configured
+#     Result: SSH enabled, SynoCommunity feed added, groups/feeds configured
 #
 #   Run 2 — SSH bootstrap (python3 → python314):
 #     ansible-playbook site.yml --tags dsm_configuration
-#     Interpreter: /bin/python3 (group_vars default)
-#     Result: python314 installed, host_vars updated with python3.14 path
+#     Result: python314 installed; setup re-runs, auto_silent promotes
+#             to python3.14; fact cache populated with new interpreter
 #
 #   Run 3+ — Full configuration (python3.14):
 #     ansible-playbook site.yml --tags dsm_configuration
-#     Interpreter: /var/packages/Python3.14/target/bin/python3.14 (host_vars)
-#     Result: full Ansible module support, Docker, pip, etc.
+#     Result: full Ansible capability — Docker, pip, containers
 #
 # ── Python interpreter ladder ────────────────────────────────────────────────
 #
-#   Run 1   connection=local        ansible_playbook_python (controller)
-#   Run 2   SSH auto_silent         discovers /bin/python3 (pre-install)
-#           → installs python314 via community_packages
-#           → setup re-runs, auto_silent now finds python3.14
-#   Run 3+  SSH auto_silent         discovers python3.14 automatically
-#
-# host_vars are never mutated — auto_silent handles interpreter selection.
+#   Run 1   connection=local     ansible_playbook_python (controller)
+#   Run 2   SSH auto_silent      finds /bin/python3 → installs python314
+#                                → setup re-runs → auto_silent finds python3.14
+#                                → python3.14 path written to fact cache
+#   Run 3+  SSH auto_silent      reads python3.14 from fact cache
 #
 # =============================================================================
 
@@ -47,8 +44,6 @@
     - dsm_api
 
 # ── Phase 2: Configure via SSH (Run 2 + Run 3+) ──────────────────────────────
-# Run 2: uses /bin/python3 (group_vars). Installs python314, writes host_vars.
-# Run 3+: uses python3.14 (host_vars). Full capability.
 - name: Phase 2 — Configure via SSH
   hosts: synology
   gather_facts: true
