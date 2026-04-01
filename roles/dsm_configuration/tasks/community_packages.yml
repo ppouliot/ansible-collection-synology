@@ -5,6 +5,9 @@
 # The correct method: the NAS fetches the SPK catalog JSON itself, downloads the .spk
 # directly, and installs it — no traffic routed through the controller at all.
 # This avoids saturating the WAN link to the remote site.
+#
+# Packages are installed in the order declared in synology_dsm_community_packages
+# so that dependencies (e.g. python312, synocli-net) are satisfied before dependents (byobu).
 
 - name: Get installed packages list
   become: true
@@ -30,43 +33,35 @@
     return_content: true
   register: _synocommunity_catalog
 
-- name: Build SPK URL map from catalog
+- name: Build package → URL map from catalog
   ansible.builtin.set_fact:
-    _spk_url_map: >-
+    _spk_ordered: >-
       {{
-        dict(
-          _synocommunity_catalog.json.packages
-          | selectattr('package', 'in', synology_dsm_community_packages)
-          | map(attribute='package')
-          | zip(
-              _synocommunity_catalog.json.packages
-              | selectattr('package', 'in', synology_dsm_community_packages)
-              | map(attribute='link')
-            )
-          | list
-        )
+        _synocommunity_catalog.json.packages
+        | selectattr('package', 'in', synology_dsm_community_packages)
+        | items2dict(key_name='package', value_name='link')
       }}
 
-- name: Download SPK files directly on NAS (no WAN relay through controller)
+- name: Download SPK directly on NAS in declared order
   become: true
   ansible.builtin.get_url:
-    url: "{{ item.value }}"
-    dest: "{{ synology_dsm_spk_tmp }}/{{ item.key }}.spk"
+    url: "{{ _spk_ordered[item] }}"
+    dest: "{{ synology_dsm_spk_tmp }}/{{ item }}.spk"
     mode: '0644'
     force: false
-  loop: "{{ _spk_url_map | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
-  when: item.key not in _installed_pkg_names
+  loop: "{{ synology_dsm_community_packages }}"
+  when:
+    - item not in _installed_pkg_names
+    - item in _spk_ordered
 
-- name: Install SPK packages via synopkg
+- name: Install SPK packages in declared order (dependencies first)
   become: true
   ansible.builtin.command:
-    cmd: "/usr/syno/bin/synopkg install {{ synology_dsm_spk_tmp }}/{{ item.key }}.spk"
-  loop: "{{ _spk_url_map | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
-  when: item.key not in _installed_pkg_names
+    cmd: "/usr/syno/bin/synopkg install {{ synology_dsm_spk_tmp }}/{{ item }}.spk"
+  loop: "{{ synology_dsm_community_packages }}"
+  when:
+    - item not in _installed_pkg_names
+    - item in _spk_ordered
   register: _synopkg_install
   changed_when: _synopkg_install.rc == 0
 
@@ -80,17 +75,14 @@
 - name: Report install results
   ansible.builtin.debug:
     msg: >-
-      {{ item.key }}:
-      {% if item.key in _post_install_pkgs.stdout %}✅ installed{% else %}❌ NOT found{% endif %}
-  loop: "{{ _spk_url_map | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
+      {{ item }}:
+      {% if item in _post_install_pkgs.stdout %}✅ installed{% else %}❌ NOT found{% endif %}
+  loop: "{{ synology_dsm_community_packages }}"
 
 - name: Clean up SPK files from NAS
   become: true
   ansible.builtin.file:
-    path: "{{ synology_dsm_spk_tmp }}/{{ item.key }}.spk"
+    path: "{{ synology_dsm_spk_tmp }}/{{ item }}.spk"
     state: absent
-  loop: "{{ _spk_url_map | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
+  loop: "{{ synology_dsm_community_packages }}"
+  when: item in _spk_ordered
