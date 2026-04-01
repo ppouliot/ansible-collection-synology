@@ -8,7 +8,9 @@
 ansible_remote_tmp: "/tmp/.ansible/tmp"
 ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ConnectTimeout=30 -o ServerAliveInterval=5 -o ServerAliveCountMax=60 -o TCPKeepAlive=yes -o ControlMaster=no"
 ansible_ssh_pipelining: true
-ansible_python_interpreter: /bin/python3
+# Prefer python3.14 once installed; falls back to /bin/python3 on first run.
+# The dsm_configuration role bootstrap (Step 2) auto-discovers and overrides this at runtime.
+ansible_python_interpreter: /var/packages/Python3.14/target/bin/python3.14
 
 # ── Bootstrap (Phase 1 — DSM API) ────────────────────────────────────────────
 synology_dsm_api_validate_certs: false
@@ -40,12 +42,10 @@ synology_dsm_api_python_package: auto
 # Community packages need type 1 install via DSM API (SynoCommunity feed required)
 synology_dsm_api_community_packages:
   - "{{ synology_dsm_api_python_package }}"
-  - byobu
 
 synology_dsm_api_package_list:
   - __python__
   - Git
-  - byobu
   - Tailscale
 
 # ── Configuration (Phase 2 — SSH) ────────────────────────────────────────────

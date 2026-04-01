@@ -30,9 +30,6 @@ synology_package_list: []
 # These cannot be installed via DSM HTTP API (error 103 from install_from_server).
 # Package IDs must match exactly what SynoCommunity uses (e.g. python314, byobu).
 synology_dsm_community_packages:
-  - python312     # byobu dependency
-  - synocli-net   # byobu dependency
-  - byobu
   - python314
 
 # DSM architecture string for SynoCommunity SPK URL query.
