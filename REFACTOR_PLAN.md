@@ -1,232 +1,104 @@
 # Synology Collection Refactor Plan
-# Goal: DSM API bootstrap → SSH handoff → full automation
-# Status: PLANNING (do not execute yet)
+# Updated: 2026-03-31
 
 ---
 
 ## Architecture
 
 ```
-Phase 1 (DSM API)          Phase 2 (SSH)
-─────────────────          ─────────────
-ppouliot.synology          ppouliot.synology
-.synology_dsm role    →    .synology_configuration role
-                           (refactored)
+Phase 1 (DSM HTTP API)           Phase 2 (SSH)
+──────────────────────           ─────────────
+interoperable.synology           interoperable.synology
+.dsm_api role               →    .dsm_configuration role
+(formerly synology_bootstrap)    (formerly synology_configuration)
 ```
-
-Phase 1 uses the new `synology_dsm_api_request` plugin to:
-- Enable SSH via the DSM API (no prior SSH needed)
-- Inject the operator's public key
-- Return a ready-to-use SSH connection
-
-Phase 2 takes over via SSH to do everything that requires shell access.
 
 ---
 
-## Task Breakdown for Cornholio
+## Completed
 
-Each task is sized to fit in a 32k context window.
-Do NOT start a task until the previous one is committed and pushed.
-Branch: `feat/dsm7-action-plugin` (already open, builds on existing PR #1)
+- ✅ `synology_bootstrap` role renamed → `dsm_api`
+- ✅ All `synology_bootstrap_` var prefixes renamed → `synology_dsm_api_`
+- ✅ FQCN updated: `interoperable.synology.dsm_api`
+- ✅ Package install logic cleaned up (official packages only via HTTP API)
+- ✅ `synology_bootstrap_package_list`: `[ContainerManager, Git, Virtualization]`
+- ✅ Community packages moved to Phase 2 reference list only
+- ✅ TASK A (original): `dsm_api` role covers SSH enable, package feeds, official packages, users, file services
+- ✅ TASK B: `facts/device.yml` — clean `set_fact` dict, saves to local facts dir
+- ✅ TASK C: `facts/packages.yml` — proper `stdout_lines` lists, `showall` gated behind `synology_refresh_packages`
+- ✅ TASK D: `user_home_service.yml` — valid role task (no stray `hosts:` block), uses `synouser --create_homes`
+- ✅ TASK E: `syno_community.yml` — no spksrc clone, `checkupdateall` gated behind `synology_refresh_packages`
+- ✅ TASK F: `pip.yml` — uses `https://bootstrap.pypa.io/get-pip.py`, gated behind `synology_pip_upgrade`
+- ✅ TASK G: `container_manager.yml` — hardware compat comment block, all tasks gated behind `synology_docker_enable`
 
 ---
 
-### TASK A — New role: `synology_bootstrap` (DSM API → SSH enablement)
+## Remaining Work
 
-**Files to create:**
-```
-roles/synology_bootstrap/
-  tasks/
-    main.yml
-    enable_ssh.yml
-    inject_ssh_key.yml
-    verify_ssh.yml
-  defaults/main.yml
-  meta/main.yml
-  README.md
-```
+### TASK H — Rename `synology_configuration` → `dsm_configuration`
 
-**What it does (in order):**
-1. `enable_ssh.yml` — use `ppouliot.synology.synology_dsm_api_request` to:
-   - Login → get SID
-   - POST to `SYNO.Core.Terminal` to enable SSH on `synology_dsm_api_ssh_port`
-   - Logout
-2. `inject_ssh_key.yml` — use `ppouliot.synology.synology_dsm_api_request` to:
-   - Login → get SID
-   - POST to `SYNO.Core.User.PasswordConfirm` or use the existing `ssh_keys.yml` approach
-     (NOTE: key injection requires SSH already up — inject via DSM file write if API supports it,
-     otherwise document that `sshkey_url` must be set and injected on first SSH connect)
-   - Logout
-3. `verify_ssh.yml` — `ansible.builtin.wait_for` on port `synology_dsm_api_ssh_port`
-   to confirm SSH is accepting connections before handing off
+Same pattern as the `dsm_api` rename. Touch:
+- `roles/synology_configuration/` → `roles/dsm_configuration/`
+- All `synology_configuration` role references in plays, includes, README
+- FQCN: `interoperable.synology.dsm_configuration`
+- Inventory repo: `playbooks/synology_configure.yml` role reference
+- Var prefix: `synology_configuration_` → `synology_dsm_configuration_` (if any)
 
-**Defaults:**
+---
+
+### TASK I — Phase 2: Community package install via synopkg
+
+Add to `dsm_configuration` role: install community packages (python314, byobu) over SSH.
+
+**Why not HTTP API:** DSM API returns error 103 for all community/SynoCommunity packages.
+`install_from_server` with community feeds is also blocked. Only path is local `.spk` install.
+
+**Implementation:**
+1. Download `.spk` from SynoCommunity to controller (using `get_url`)
+2. Copy to NAS via `ansible.builtin.copy`
+3. Install via `synopkg install <path>` with `become: true`
+4. Verify with `synopkg list --name`
+5. Clean up `.spk` from NAS
+
+**New task file:** `roles/dsm_configuration/tasks/community_packages.yml`
+**New defaults:**
 ```yaml
-synology_dsm_api_ssh_port: 22
-synology_dsm_api_ssh_enable: true
-synology_dsm_api_validate_certs: true
-synology_dsm_api_sshkey_url: ""   # e.g. https://github.com/ppouliot.keys
+synology_dsm_community_packages:
+  - name: python314
+    spk_url: "https://packages.synocommunity.com/download/..."  # resolved at runtime
+  - name: byobu
+    spk_url: "https://packages.synocommunity.com/download/..."
+synology_dsm_community_packages_tmp: /tmp/syno_spk
 ```
 
-**Pass criteria:** `wait_for` returns within timeout, port is open.
+SynoCommunity SPK URL pattern:
+`https://packages.synocommunity.com/?wd=<package>&arch=<arch>&build=<dsm_build>`
+
+Arch and build are available from `synology_device_facts` (populated by `facts/device.yml`).
 
 ---
 
-### TASK B — Refactor `facts/device.yml` → `synology_facts` module
+### TASK J — Timezone standardization
 
-**Problem:** Current `device.yml` is a wall of 40+ `debug` tasks that just print facts.
-It doesn't save anything, doesn't set any custom vars, and spams the play output.
+Both DS218+ (ds218p01, ds218p02) report timezone `Bogota` (GMT-5).
+Verify if intentional or default-on-reset. If not, set via DSM API in `dsm_api` role:
+`SYNO.Core.NTP` or `SYNO.Core.Regional` → set `time_zone` to `America/New_York`.
 
-**Fix:** Rewrite as a single structured `set_fact` that captures only the useful Synology-specific
-fields into a `synology_device` dict. Keep SSH-based `ansible.builtin.setup` call.
-
-**File:** `roles/synology_configuration/tasks/facts/device.yml`
-
-Replace the entire file with:
-```yaml
----
-- name: Gather Ansible facts
-  ansible.builtin.setup:
-  when: not ansible_facts.keys() | list | length
-
-- name: Set synology_device facts
-  ansible.builtin.set_fact:
-    synology_device:
-      model: "{{ ansible_facts.proc_cmdline.syno_hw_version | default('unknown') }}"
-      serial: "{{ ansible_facts.proc_cmdline.sn | default('unknown') }}"
-      firmware: "{{ ansible_facts.proc_cmdline.syno_fw_version | default('unknown') }}"
-      arch: "{{ ansible_facts.architecture | default('unknown') }}"
-      mac_addresses: "{{ ansible_facts.proc_cmdline.macs | default('') }}"
-      hostname: "{{ ansible_facts.hostname | default(inventory_hostname) }}"
-      interfaces: "{{ ansible_facts.proc_cmdline.netif_num | default('unknown') }}"
-      distribution: "{{ ansible_facts.distribution | default('unknown') }}"
-      distribution_version: "{{ ansible_facts.distribution_version | default('unknown') }}"
-
-- name: Display synology_device facts
-  ansible.builtin.debug:
-    var: synology_device
-```
-
-**Pass criteria:** `synology_device` fact is set and `synology_device.model` is not 'unknown'.
-
----
-
-### TASK C — Refactor `facts/packages.yml`
-
-**Problem:** Uses raw `stdout` strings, not lists. `synology_all_packages` fact clobbers the
-registered var of the same name. Debug dumps entire package list to output.
-
-**Fix:**
-```yaml
----
-- name: Get installed Synology packages
-  ansible.builtin.command: /usr/syno/bin/synopkg list --name
-  changed_when: false
-  register: _synopkg_installed
-
-- name: Set synology_installed_packages fact (list)
-  ansible.builtin.set_fact:
-    synology_installed_packages: "{{ _synopkg_installed.stdout_lines }}"
-
-- name: Show installed package count
-  ansible.builtin.debug:
-    msg: "{{ synology_installed_packages | length }} packages installed"
-```
-
-Drop the `showall` call — it's slow and the output is rarely useful in automation.
-
-**Pass criteria:** `synology_installed_packages` is a list, not a string.
-
----
-
-### TASK D — Fix `user_home_service.yml`
-
-**Problem:** File is completely broken — it has `hosts:` and `tasks:` blocks inside a role task
-file (it's a full playbook accidentally pasted into a task file). It will fail with a parse error.
-
-**Fix:** Rewrite as a proper role task using `ansible.builtin.lineinfile` and
-`ansible.builtin.command` to restart the service. No `hosts:` block.
-
-```yaml
----
-- name: Enable user home service
-  become: true
-  block:
-    - name: Enable user home in synoinfo.conf
-      ansible.builtin.lineinfile:
-        path: /etc/synoinfo.conf
-        regexp: '^support_user_home='
-        line: 'support_user_home="yes"'
-        state: present
-      register: _user_home_changed
-
-    - name: Restart user home service
-      ansible.builtin.command: synoservicectl --restart SYNO.Core.UserHome
-      when: _user_home_changed.changed
-      changed_when: true
-```
-
-**Pass criteria:** File is syntactically valid (`ansible-playbook --syntax-check`).
-
----
-
-### TASK E — Fix `syno_community.yml`
-
-**Problem:**
-- The git clone of `spksrc` (2GB repo) has nothing to do with adding a package source — wrong task, wrong repo.
-- `checkupdateall` runs unconditionally every play.
-
-**Fix:**
-- Remove the `ansible.builtin.git` spksrc clone entirely.
-- Gate `checkupdateall` behind a `when: synology_refresh_packages | default(false)` var.
-- Keep the feeds template task.
-
----
-
-### TASK F — Fix `pip.yml`
-
-**Problem:** Hardcoded to Python 3.8 pip bootstrap URL. DSM 7 ships Python 3.x by default.
-
-**Fix:** Update URL to current `https://bootstrap.pypa.io/get-pip.py` and add a `when:` guard
-so pip install only runs if `synology_pip_upgrade: true`.
-
----
-
-### TASK G — Annotate `container_manager.yml` and `docker` templates as DSM-version-gated
-
-**Problem:** Container Manager vs legacy Docker package name differs by DSM version.
-Some tasks will silently fail on models without virtualization support.
-
-**Fix (minimal, no breakage):**
-- Add `when: synology_docker_enable | default(false)` guards throughout (most are missing).
-- Add a comment block at the top of `container_manager.yml` noting which DSM versions and
-  hardware models support Container Manager vs Docker.
-- Do NOT refactor logic yet — leave for the next phase when test hardware is available.
-
----
-
-## What This Does NOT Touch (yet)
-
-- `cloudflare/ddns.yml` — functional, leave as-is
-- `acme/` — functional, leave as-is
-- `files.yml`, `git.yml`, `upptime.yml` — leave as-is
-- `handlers/main.yml` — leave as-is
-- All other roles in the collection — untouched
+Add `synology_dsm_api_timezone` var (default: `""` = no change) and wire into `network.yml`.
 
 ---
 
 ## Execution Order
 
 ```
-A → B → C → D → E → F → G
+H (rename dsm_configuration) → I (community packages) → J (timezone)
 ```
 
-Commit after each task. Each task is independent — a failure in one does not block others
-except Task A (bootstrap) which must pass before any SSH-dependent work.
+Commit after each task.
 
 ---
 
-## Token Budget Note
+## What This Does NOT Touch
 
-Each task fits in a single Cornholio run (32k context).
-Do not combine tasks. Do not read files that aren't needed for the current task.
+- `cloudflare/`, `acme/`, `files.yml`, `git.yml`, `upptime.yml` — leave as-is
+- All non-synology roles — untouched
