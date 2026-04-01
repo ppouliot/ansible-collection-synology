@@ -71,3 +71,12 @@ modernized for DSM 7.x and Ansible 2.12+ by [Interoperable Systems](https://inte
 
 Please follow Ansible best practices, use FQCNs (`ansible.builtin.*`), and adhere to
 [Conventional Commits](https://www.conventionalcommits.org/). All PRs are linted via GitHub Actions.
+
+## Future Work
+
+### Redis Fact Cache Backend
+Currently using `jsonfile` fact caching. Future: run Redis on ds218 via
+SynoCommunity package, switch `fact_caching = redis` in ansible.cfg.
+Requires a dedicated playbook to bootstrap Redis on ds218 before it can
+be used as the fact cache backend. Enables shared fact cache across
+multiple controller machines.
