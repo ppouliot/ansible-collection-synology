@@ -25,6 +25,25 @@ sshkey_url: https://github.com/ppouliot.keys
 #synology_manage_packages: true
 synology_required_packages: []
 synology_package_list: []
+
+# Community packages — installed via synopkg install <local.spk> over SSH
+# These cannot be installed via DSM HTTP API (error 103 from install_from_server).
+# Package IDs must match exactly what SynoCommunity uses (e.g. python314, byobu).
+synology_dsm_community_packages:
+  - python314
+  - byobu
+
+# DSM architecture string for SynoCommunity SPK URL query.
+# DS218+/DS723+/most modern x86_64 models → apollolake or r1000, but the SPK
+# covers all x86_64 arches in a single file. Use 'apollolake' as default.
+# Override per-host if needed.
+synology_dsm_arch: "apollolake"
+
+# DSM build number — must match what's installed (86009 = DSM 7.3.2)
+synology_dsm_build: "86009"
+
+# Temp dir for SPK downloads (controller and NAS)
+synology_dsm_spk_tmp: "/tmp/syno_spk"
 #synology_required_packages:
 #  - "ReplicationService"
 #  - "Virtualization"

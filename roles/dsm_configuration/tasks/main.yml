@@ -84,7 +84,14 @@
       tags: cloudflare_ddns_scripts
   # End Block
 
-# ── Step 8: Packages, pip, Docker ─────────────────────────────────────────────
+# ── Step 8: Community packages (SynoCommunity SPK install via SSH) ────────────
+- name: Install SynoCommunity packages
+  ansible.builtin.include_tasks:
+    file: community_packages.yml
+  when: synology_dsm_community_packages | default([]) | length > 0
+  tags: community_packages
+
+# ── Step 9: Packages, pip, Docker ─────────────────────────────────────────────
 - name: Configure native package management, python-pip, and docker
   block:
     - name: Install native Synology packages (fallback — prefer synology_dsm_api_package_list for API install)
