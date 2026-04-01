@@ -1,8 +1,12 @@
 ---
-# Set DSM timezone via synowebapi over SSH.
+# Set DSM timezone by writing directly to /etc/synoinfo.conf.
 #
 # SYNO.Core.Region.NTP set requires the built-in admin account via HTTP API (error 119).
-# synowebapi bypasses that restriction when run locally as root on the NAS.
+# synowebapi returns rc=0 but silently does nothing when called via sudo pipe.
+# Direct synoinfo.conf edit is the reliable approach for SSH-based automation.
+#
+# DSM reads timezone on service restart — the change takes effect immediately
+# for display purposes; a reboot is not required.
 #
 # Valid DSM timezone keys match the Synology UI dropdown labels, e.g.:
 #   "Eastern"      → (GMT-05:00) Eastern Time (US & Canada)
@@ -11,7 +15,6 @@
 #   "UTC"          → (GMT+00:00) UTC
 #
 # Keys are found in /usr/syno/synoman/webman/texts/enu/strings on the NAS.
-# Default: "Eastern" (America/New_York equivalent)
 
 - name: Get current DSM timezone
   become: true
@@ -21,23 +24,20 @@
   changed_when: false
   failed_when: false
 
-- name: Set DSM timezone via synowebapi
+- name: Set DSM timezone in /etc/synoinfo.conf
   become: true
-  ansible.builtin.command:
-    cmd: >
-      /usr/syno/bin/synowebapi --SYNO.Core.Region.NTP.set version=3
-      timezone="{{ synology_dsm_timezone }}"
-      ntpserver="{{ synology_dsm_ntp_server }}"
-      enable_ntp="ntp"
+  ansible.builtin.replace:
+    path: /etc/synoinfo.conf
+    regexp: '^timezone=".*"'
+    replace: 'timezone="{{ synology_dsm_timezone }}"'
   register: _set_timezone
-  changed_when: _set_timezone.rc == 0
-  failed_when: _set_timezone.rc != 0 and 'already' not in _set_timezone.stderr | default('')
   when: >
     synology_dsm_timezone | length > 0 and
     ('timezone="' + synology_dsm_timezone + '"') not in _current_timezone.stdout | default('')
 
-- name: Display timezone status
+- name: Display timezone result
   ansible.builtin.debug:
-    msg: >
-      Timezone: {{ _current_timezone.stdout | default('unknown') }}
-      {% if _set_timezone is changed %} → set to {{ synology_dsm_timezone }}{% endif %}
+    msg: >-
+      {{ inventory_hostname }}: timezone
+      {{ _current_timezone.stdout | default('unknown') }}
+      {% if _set_timezone is changed %}→ {{ synology_dsm_timezone }} ✓{% else %}(already correct){% endif %}
