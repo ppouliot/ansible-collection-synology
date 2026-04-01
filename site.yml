@@ -15,6 +15,22 @@
 #   ansible-playbook -i inventory.ini site.yml --tags dsm_configuration
 # =============================================================================
 
+# =============================================================================
+# Python interpreter bootstrap ladder:
+#
+#   Phase 1 (dsm_api)     connection=local, ansible_playbook_python
+#                         No SSH. DSM HTTP API only.
+#
+#   Phase 2 (dsm_cfg)     SSH, /bin/python3 (always present on DSM)
+#                         Installs python314 via community_packages.
+#                         Discovers highest Python, writes to host_vars,
+#                         promotes for remainder of play.
+#
+#   Phase 3+              SSH, ansible_python_interpreter from host_vars
+#                         (e.g. /var/packages/Python3.14/target/bin/python3.14)
+#                         Set automatically after first Phase 2 run.
+# =============================================================================
+
 # ── Phase 1: Bootstrap via DSM API ──────────────────────────────────────────
 - name: Phase 1 — Bootstrap via DSM API
   hosts: synology
@@ -27,6 +43,10 @@
     - dsm_api
 
 # ── Phase 2: Configure via SSH ───────────────────────────────────────────────
+# Interpreter: /bin/python3 from group_vars (bootstrap default).
+# After community_packages installs python314, the role discovers it,
+# writes it to host_vars/<host>/main.yml, and promotes it mid-play.
+# Subsequent runs use the host_vars value automatically.
 - name: Phase 2 — Configure via SSH
   hosts: synology
   gather_facts: false
