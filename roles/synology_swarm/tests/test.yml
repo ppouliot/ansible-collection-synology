@@ -1,0 +1,4 @@
+---
+- hosts: synology
+  roles:
+    - role: ../../synology_swarm

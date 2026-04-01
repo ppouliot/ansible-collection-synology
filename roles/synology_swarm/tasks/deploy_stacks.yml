@@ -1,0 +1,42 @@
+---
+# roles/synology_swarm/tasks/deploy_stacks.yml
+
+- name: Create directories for compose files and configs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user_puid | default('1000') }}"
+    group: "{{ group_pgid | default('100') }}"
+    mode: "0755"
+    recurse: true
+  with_items:
+    - "{{ container_directory_root }}/compose"
+    - "{{ container_directory_root }}/dozzle"
+    - "{{ container_directory_root }}/ergo"
+    - "{{ container_directory_root }}/netbootxyz"
+
+- name: Place Swarm Compose Stacks
+  ansible.builtin.template:
+    src: "compose/{{ item }}.yml.j2"
+    dest: "{{ container_directory_root }}/compose/{{ item }}.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  with_items:
+    - dozzle
+    - ergo
+    - netbootxyz
+  ignore_errors: true # Ignore if template doesn't exist yet
+
+- name: Deploy Swarm Stacks
+  community.docker.docker_stack:
+    docker_cli: "{{ synology_docker_cli | default('/usr/local/bin/docker') }}"
+    state: present
+    name: "{{ item }}"
+    compose:
+      - "{{ container_directory_root }}/compose/{{ item }}.yml"
+  with_items:
+    - dozzle
+    - ergo
+    - netbootxyz
+  ignore_errors: true

@@ -1,0 +1,4 @@
+---
+# roles/synology_swarm/defaults/main.yml
+# This role requires docker to be enabled
+synology_docker_enable: false

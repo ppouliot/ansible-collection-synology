@@ -1,0 +1,34 @@
+---
+# roles/synology_swarm/tasks/main.yml
+- name: Skip role entirely if docker is not enabled
+  meta: end_host
+  when: not synology_docker_enable | default(false)
+
+- name: Check if the node is already part of a Swarm
+  ansible.builtin.command: /usr/local/bin/docker info --format '{{ "{{.Swarm.LocalNodeState}}" }}'
+  register: _swarm_status
+  changed_when: false
+
+- name: Identify the Primary Manager
+  ansible.builtin.set_fact:
+    primary_manager: "{{ groups.synology | map('extract', hostvars) | selectattr('swarm_role', 'defined') | selectattr('swarm_role', 'equalto', 'manager') | map(attribute='inventory_hostname') | list | first }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Initialize Swarm on Primary Manager
+  ansible.builtin.include_tasks: manager_init.yml
+  when: inventory_hostname == primary_manager
+
+- name: Join Secondary Managers
+  ansible.builtin.include_tasks: manager_join.yml
+  when: 
+    - swarm_role | default('') == 'manager'
+    - inventory_hostname != primary_manager
+
+- name: Join Worker Nodes
+  ansible.builtin.include_tasks: worker_join.yml
+  when: swarm_role | default('') == 'worker'
+
+- name: Deploy Swarm Compose Stacks
+  ansible.builtin.include_tasks: deploy_stacks.yml
+  when: inventory_hostname == primary_manager

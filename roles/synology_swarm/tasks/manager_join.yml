@@ -1,0 +1,11 @@
+---
+# roles/synology_swarm/tasks/manager_join.yml
+
+- name: Join Swarm as a secondary manager
+  community.docker.docker_swarm:
+    state: join
+    join_token: "{{ swarm_manager_token }}"
+    remote_addrs: [ "{{ swarm_manager_ip }}:2377" ]
+  when: "'inactive' in _swarm_status.stdout"
+  register: _swarm_manager_join
+  changed_when: "'This node joined a swarm as a manager' in _swarm_manager_join.actions | default([])"

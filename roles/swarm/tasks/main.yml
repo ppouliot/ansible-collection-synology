@@ -1,6 +1,0 @@
----
-- name: Gather facts about the synology 
-  block:
-    - name: Determine facts about each node so we can deploy a swarm cluster
-      ansible.builtin.include_tasks:
-        file: swarm_order.yml

@@ -1,0 +1,23 @@
+---
+# roles/synology_swarm/tasks/manager_init.yml
+
+- name: Init a new swarm with default parameters
+  community.docker.docker_swarm:
+    state: present
+  when: "'inactive' in _swarm_status.stdout"
+  register: _swarm_init
+  changed_when: "'New Swarm cluster created' in _swarm_init.actions | default([])"
+
+- name: Get swarm_info from primary manager
+  community.docker.docker_swarm_info:
+  register: _swarm_info
+  changed_when: false
+
+- name: Set Swarm Tokens for all hosts
+  ansible.builtin.set_fact:
+    swarm_manager_token: "{{ _swarm_info['swarm_facts']['JoinTokens']['Manager'] }}"
+    swarm_worker_token: "{{ _swarm_info['swarm_facts']['JoinTokens']['Worker'] }}"
+    swarm_manager_ip: "{{ hostvars[inventory_hostname].ansible_host | default(ansible_default_ipv4.address) }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  with_items: "{{ groups['all'] }}"
