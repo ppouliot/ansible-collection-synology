@@ -80,7 +80,7 @@
 # ── Step 7: Packages, pip, Docker ─────────────────────────────────────────────
 - name: Configure native package management, python-pip, and docker
   block:
-    - name: Install native Synology packages (fallback — prefer synology_bootstrap_package_list for API install)
+    - name: Install native Synology packages (fallback — prefer synology_dsm_api_package_list for API install)
       when: synology_package_list is defined
       ansible.builtin.include_tasks:
         file: packages.yml

@@ -1,9 +1,9 @@
 ---
 - name: Get existing shares
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Share
     api_version: "1"
     api_method: list
@@ -22,9 +22,9 @@
 
 - name: Create shared folders
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Share
     api_version: "1"
     api_method: create
@@ -34,7 +34,7 @@
       vol_path: "{{ item.volume | default('/volume1') }}"
       desc: "{{ item.desc | default('') }}"
     ignore_api_errors: [103, 119]
-  loop: "{{ synology_bootstrap_shares }}"
+  loop: "{{ synology_dsm_api_shares }}"
   loop_control:
     label: "{{ item.name }}"
   when: item.name not in _synology_share_names

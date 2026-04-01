@@ -1,17 +1,17 @@
 ---
 - name: Configure NTP servers
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Region.NTP
     api_version: "1"
     api_method: set
     request_method: POST
     api_params:
-      ntpserver: "{{ synology_bootstrap_ntp_servers | join(',') }}"
+      ntpserver: "{{ synology_dsm_api_ntp_servers | join(',') }}"
     ignore_api_errors: [119]
-  when: synology_bootstrap_ntp_servers | length > 0
+  when: synology_dsm_api_ntp_servers | length > 0
   register: _configure_ntp
 
 - name: Debug — Configure NTP servers
@@ -21,9 +21,9 @@
 
 - name: Configure DDNS records
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.DDNS.Record
     api_version: "1"
     api_method: add
@@ -32,10 +32,10 @@
       hostname: "{{ item.hostname }}"
       provider: "{{ item.provider }}"
     ignore_api_errors: [103, 119]
-  loop: "{{ synology_bootstrap_ddns_records }}"
+  loop: "{{ synology_dsm_api_ddns_records }}"
   loop_control:
     label: "{{ item.hostname }}"
-  when: synology_bootstrap_ddns_records | length > 0
+  when: synology_dsm_api_ddns_records | length > 0
   register: _configure_ddns
 
 - name: Debug — Configure DDNS records

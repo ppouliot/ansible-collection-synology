@@ -1,9 +1,9 @@
 ---
 - name: Logout from DSM API
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.API.Auth
     api_version: "1"
     api_method: logout

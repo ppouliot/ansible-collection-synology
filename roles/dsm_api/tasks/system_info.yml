@@ -1,9 +1,9 @@
 ---
 - name: Get DSM system info
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.System
     api_version: "3"
     api_method: info
@@ -12,9 +12,9 @@
 
 - name: Get DSM info
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.DSM.Info
     api_version: "2"
     api_method: getinfo
@@ -49,7 +49,7 @@
     content: |
       # System info fact — {{ inventory_hostname }}
       # Generated via DSM API (Phase 1 — no SSH required)
-      # DSM URL: {{ synology_bootstrap_dsm_url }}
+      # DSM URL: {{ synology_dsm_api_dsm_url }}
       model: "{{ synology_dsm_info.model | default('unknown') }}"
       serial: "{{ synology_system_info.serial | default('unknown') }}"
       dsm_version: "{{ synology_dsm_info.version | default('unknown') }}"

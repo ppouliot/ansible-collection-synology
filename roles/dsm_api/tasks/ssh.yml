@@ -1,17 +1,17 @@
 ---
 - name: Enable SSH service with high security level
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Terminal
     api_version: "3"
     api_method: set
     request_method: POST
     api_params:
       enable_ssh: "true"
-      ssh_port: "{{ synology_bootstrap_ssh_port }}"
-      security_level: "{{ synology_bootstrap_ssh_security_level }}"
+      ssh_port: "{{ synology_dsm_api_ssh_port }}"
+      security_level: "{{ synology_dsm_api_ssh_security_level }}"
     ignore_api_errors: [119]
   register: _enable_ssh
 
@@ -27,7 +27,7 @@
 - name: Wait for SSH to become available
   ansible.builtin.wait_for:
     host: "{{ ansible_host | default(inventory_hostname) }}"
-    port: "{{ synology_bootstrap_ssh_port }}"
+    port: "{{ synology_dsm_api_ssh_port }}"
     timeout: 180
     delay: 5
     connect_timeout: 10
@@ -47,7 +47,7 @@
       # SSH bootstrap fact — {{ inventory_hostname }}
       # Generated: {{ ansible_date_time.iso8601 | default('unknown') }}
       ssh_enabled: true
-      ssh_port: {{ synology_bootstrap_ssh_port }}
-      dsm_url: {{ synology_bootstrap_dsm_url }}
+      ssh_port: {{ synology_dsm_api_ssh_port }}
+      dsm_url: {{ synology_dsm_api_dsm_url }}
     dest: "{{ playbook_dir }}/facts/{{ inventory_hostname }}_ssh_bootstrap.yml"
   delegate_to: localhost

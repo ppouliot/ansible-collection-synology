@@ -1,22 +1,22 @@
 ---
 - name: Get current group membership
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.User
     api_version: "1"
     api_method: list
     request_method: POST
     ignore_api_errors: [119]
   register: _synology_all_users
-  when: synology_bootstrap_group_members | length > 0
+  when: synology_dsm_api_group_members | length > 0
 
 - name: Add members to groups
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Group
     api_version: "1"
     api_method: set
@@ -25,6 +25,6 @@
       name: "{{ item.group }}"
       members: "{{ item.members | to_json | to_json }}"
     ignore_api_errors: [103, 119]
-  loop: "{{ synology_bootstrap_group_members }}"
+  loop: "{{ synology_dsm_api_group_members }}"
   loop_control:
     label: "{{ item.members | join(', ') }} → {{ item.group }}"

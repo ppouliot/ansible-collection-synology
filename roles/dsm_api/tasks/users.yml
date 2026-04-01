@@ -1,9 +1,9 @@
 ---
 - name: Get existing users
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.User
     api_version: "1"
     api_method: list
@@ -16,9 +16,9 @@
 
 - name: Create users
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.User
     api_version: "1"
     api_method: create
@@ -29,7 +29,7 @@
       email: "{{ item.email | default('') }}"
       description: "{{ item.description | default('') }}"
     ignore_api_errors: [12]  # 12 = user already exists
-  loop: "{{ synology_bootstrap_users }}"
+  loop: "{{ synology_dsm_api_users }}"
   loop_control:
     label: "{{ item.name }}"
   when: item.name not in _synology_user_names
@@ -37,9 +37,9 @@
 
 - name: Add users to groups
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Group.Member
     api_version: "1"
     api_method: add
@@ -48,6 +48,6 @@
       name: "{{ item.1 }}"
       members: '["{{ item.0.name }}"]'
     ignore_api_errors: [103]
-  loop: "{{ synology_bootstrap_users | subelements('groups', skip_missing=True) }}"
+  loop: "{{ synology_dsm_api_users | subelements('groups', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.name }} → {{ item.1 }}"

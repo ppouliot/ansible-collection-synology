@@ -49,7 +49,7 @@ roles/synology_bootstrap/
 **What it does (in order):**
 1. `enable_ssh.yml` — use `ppouliot.synology.synology_dsm_api_request` to:
    - Login → get SID
-   - POST to `SYNO.Core.Terminal` to enable SSH on `synology_bootstrap_ssh_port`
+   - POST to `SYNO.Core.Terminal` to enable SSH on `synology_dsm_api_ssh_port`
    - Logout
 2. `inject_ssh_key.yml` — use `ppouliot.synology.synology_dsm_api_request` to:
    - Login → get SID
@@ -57,15 +57,15 @@ roles/synology_bootstrap/
      (NOTE: key injection requires SSH already up — inject via DSM file write if API supports it,
      otherwise document that `sshkey_url` must be set and injected on first SSH connect)
    - Logout
-3. `verify_ssh.yml` — `ansible.builtin.wait_for` on port `synology_bootstrap_ssh_port`
+3. `verify_ssh.yml` — `ansible.builtin.wait_for` on port `synology_dsm_api_ssh_port`
    to confirm SSH is accepting connections before handing off
 
 **Defaults:**
 ```yaml
-synology_bootstrap_ssh_port: 22
-synology_bootstrap_ssh_enable: true
-synology_bootstrap_validate_certs: true
-synology_bootstrap_sshkey_url: ""   # e.g. https://github.com/ppouliot.keys
+synology_dsm_api_ssh_port: 22
+synology_dsm_api_ssh_enable: true
+synology_dsm_api_validate_certs: true
+synology_dsm_api_sshkey_url: ""   # e.g. https://github.com/ppouliot.keys
 ```
 
 **Pass criteria:** `wait_for` returns within timeout, port is open.

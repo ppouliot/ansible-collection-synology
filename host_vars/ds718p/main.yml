@@ -11,11 +11,11 @@ ansible_password: "{{ vault_ansible_password }}"
 ansible_become_password: "{{ vault_ansible_password }}"
 
 # ── Bootstrap auth ────────────────────────────────────────────────────────────
-synology_bootstrap_dsm_url: "http://172.19.0.40:5000"
-synology_bootstrap_username: peter
-synology_bootstrap_password: "{{ vault_ansible_password }}"
-synology_bootstrap_admin_username: peter
-synology_bootstrap_admin_password: "{{ vault_ansible_password }}"
+synology_dsm_api_dsm_url: "http://172.19.0.40:5000"
+synology_dsm_api_username: peter
+synology_dsm_api_password: "{{ vault_ansible_password }}"
+synology_dsm_api_admin_username: peter
+synology_dsm_api_admin_password: "{{ vault_ansible_password }}"
 
 # ── ds718p-specific overrides ───────────────────────────────────────────────
 # DS718+ — Intel Celeron J3455, x86_64, DSM 7.x, lynn-ma (172.19.0.x)

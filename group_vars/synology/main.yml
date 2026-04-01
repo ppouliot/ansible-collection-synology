@@ -11,38 +11,38 @@ ansible_ssh_pipelining: true
 ansible_python_interpreter: /bin/python3
 
 # ── Bootstrap (Phase 1 — DSM API) ────────────────────────────────────────────
-synology_bootstrap_validate_certs: false
-synology_bootstrap_enable_user_home: true
-synology_bootstrap_enable_ssh: true
-synology_bootstrap_enable_smb: true
-synology_bootstrap_enable_nfs: false
-synology_bootstrap_enable_afp: false
-synology_bootstrap_enable_ftp: false
-synology_bootstrap_enable_sftp: false
-synology_bootstrap_enable_security: false
-synology_bootstrap_enable_notifications: false
-synology_bootstrap_enable_network: false
+synology_dsm_api_validate_certs: false
+synology_dsm_api_enable_user_home: true
+synology_dsm_api_enable_ssh: true
+synology_dsm_api_enable_smb: true
+synology_dsm_api_enable_nfs: false
+synology_dsm_api_enable_afp: false
+synology_dsm_api_enable_ftp: false
+synology_dsm_api_enable_sftp: false
+synology_dsm_api_enable_security: false
+synology_dsm_api_enable_notifications: false
+synology_dsm_api_enable_network: false
 
-synology_bootstrap_group_members:
+synology_dsm_api_group_members:
   - group: administrators
-    members: "{{ [synology_bootstrap_username] | unique }}"
+    members: "{{ [synology_dsm_api_username] | unique }}"
 
-# SSH connection user — should match synology_bootstrap_username on fresh installs
-ansible_user: "{{ synology_bootstrap_username }}"
+# SSH connection user — should match synology_dsm_api_username on fresh installs
+ansible_user: "{{ synology_dsm_api_username }}"
 
-synology_bootstrap_package_feeds:
+synology_dsm_api_package_feeds:
   - name: SynoCommunity
     feed: https://packages.synocommunity.com
 
 # Set to 'auto' to detect latest available Python from DSM, or pin e.g. 'python314'
-synology_bootstrap_python_package: auto
+synology_dsm_api_python_package: auto
 
 # Community packages need type 1 install via DSM API (SynoCommunity feed required)
-synology_bootstrap_community_packages:
-  - "{{ synology_bootstrap_python_package }}"
+synology_dsm_api_community_packages:
+  - "{{ synology_dsm_api_python_package }}"
   - byobu
 
-synology_bootstrap_package_list:
+synology_dsm_api_package_list:
   - __python__
   - Git
   - byobu

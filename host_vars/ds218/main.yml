@@ -12,11 +12,11 @@ ansible_password: "{{ vault_ansible_password }}"
 ansible_become_password: "{{ vault_ansible_password }}"
 
 # ── Bootstrap auth ────────────────────────────────────────────────────────────
-synology_bootstrap_dsm_url: "http://172.19.0.43:5000"
-synology_bootstrap_username: peter
-synology_bootstrap_password: "{{ vault_ansible_password }}"
-synology_bootstrap_admin_username: peter
-synology_bootstrap_admin_password: "{{ vault_ansible_password }}"
+synology_dsm_api_dsm_url: "http://172.19.0.43:5000"
+synology_dsm_api_username: peter
+synology_dsm_api_password: "{{ vault_ansible_password }}"
+synology_dsm_api_admin_username: peter
+synology_dsm_api_admin_password: "{{ vault_ansible_password }}"
 
 # ── DS218-specific overrides ──────────────────────────────────────────────────
 synology_docker_enable: false

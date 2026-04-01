@@ -1,6 +1,6 @@
 ---
 # =============================================================================
-# synology_bootstrap — main orchestrator
+# dsm_api — main orchestrator
 # Phase 1: DSM API only (no SSH required)
 # Phase 2: SSH readiness verified at end
 # =============================================================================
@@ -13,7 +13,7 @@
 - name: Manage group membership (promote users before other tasks)
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/groups.yml"
-  when: synology_bootstrap_group_members | length > 0
+  when: synology_dsm_api_group_members | length > 0
   tags: groups
 
 - name: Gather system info
@@ -24,31 +24,31 @@
 - name: Enable user home service
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/user_home.yml"
-  when: synology_bootstrap_enable_user_home
+  when: synology_dsm_api_enable_user_home
   tags: user_home
 
 - name: Manage users
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/users.yml"
-  when: synology_bootstrap_users | length > 0
+  when: synology_dsm_api_users | length > 0
   tags: users
 
 - name: Configure package feeds
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/package_feeds.yml"
-  when: synology_bootstrap_package_feeds | length > 0
+  when: synology_dsm_api_package_feeds | length > 0
   tags: packages
 
 - name: Install packages via DSM API
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/packages.yml"
-  when: synology_bootstrap_package_list | length > 0
+  when: synology_dsm_api_package_list | length > 0
   tags: packages
 
 - name: Enable SSH
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/ssh.yml"
-  when: synology_bootstrap_enable_ssh
+  when: synology_dsm_api_enable_ssh
   tags: ssh
 
 - name: Configure file services
@@ -59,25 +59,25 @@
 - name: Configure shared folders
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/shares.yml"
-  when: synology_bootstrap_shares | length > 0
+  when: synology_dsm_api_shares | length > 0
   tags: shares
 
 - name: Configure network (NTP/DDNS)
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/network.yml"
-  when: synology_bootstrap_enable_network
+  when: synology_dsm_api_enable_network
   tags: network
 
 - name: Configure security
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/security.yml"
-  when: synology_bootstrap_enable_security
+  when: synology_dsm_api_enable_security
   tags: security
 
 - name: Configure notifications
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/notifications.yml"
-  when: synology_bootstrap_enable_notifications
+  when: synology_dsm_api_enable_notifications
   tags: notifications
 
 - name: Logout from DSM API

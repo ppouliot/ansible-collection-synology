@@ -11,7 +11,7 @@
 #
 # Usage:
 #   ansible-playbook -i inventory.ini site.yml
-#   ansible-playbook -i inventory.ini site.yml --tags synology_bootstrap
+#   ansible-playbook -i inventory.ini site.yml --tags dsm_api
 #   ansible-playbook -i inventory.ini site.yml --tags synology_configuration
 # =============================================================================
 
@@ -20,11 +20,11 @@
   hosts: synology
   connection: local
   gather_facts: false
-  tags: synology_bootstrap
+  tags: dsm_api
   vars:
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
   roles:
-    - synology_bootstrap
+    - dsm_api
 
 # ── Phase 2: Configure via SSH ───────────────────────────────────────────────
 - name: Phase 2 — Configure via SSH
@@ -35,7 +35,7 @@
     - name: Wait for SSH to be ready
       ansible.builtin.wait_for:
         host: "{{ ansible_host | default(inventory_hostname) }}"
-        port: "{{ synology_bootstrap_ssh_port | default(22) }}"
+        port: "{{ synology_dsm_api_ssh_port | default(22) }}"
         timeout: 180
         delay: 5
         connect_timeout: 10

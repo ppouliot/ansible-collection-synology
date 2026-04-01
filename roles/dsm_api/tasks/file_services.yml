@@ -1,18 +1,18 @@
 ---
 - name: Configure SMB service
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.FileServ.SMB
     api_version: "3"
     api_method: set
     request_method: POST
     api_params:
-      enable_samba: "{{ synology_bootstrap_enable_smb | to_json }}"
-      workgroup: "{{ synology_bootstrap_smb_workgroup }}"
+      enable_samba: "{{ synology_dsm_api_enable_smb | to_json }}"
+      workgroup: "{{ synology_dsm_api_smb_workgroup }}"
     ignore_api_errors: [119]
-  when: synology_bootstrap_enable_smb is defined
+  when: synology_dsm_api_enable_smb is defined
   register: _configure_smb
 
 - name: Debug — Configure SMB service
@@ -22,17 +22,17 @@
 
 - name: Configure NFS service
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.FileServ.NFS
     api_version: "3"
     api_method: set
     request_method: POST
     api_params:
-      enable_nfs: "{{ synology_bootstrap_enable_nfs | to_json }}"
+      enable_nfs: "{{ synology_dsm_api_enable_nfs | to_json }}"
     ignore_api_errors: [119]
-  when: synology_bootstrap_enable_nfs is defined
+  when: synology_dsm_api_enable_nfs is defined
   register: _configure_nfs
 
 - name: Debug — Configure NFS service
@@ -42,15 +42,15 @@
 
 - name: Get current FTP config
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.FileServ.FTP
     api_version: "3"
     api_method: get
     ignore_api_errors: [119]
   register: _ftp_current_config
-  when: synology_bootstrap_enable_ftp
+  when: synology_dsm_api_enable_ftp
 
 - name: Debug — Get current FTP config
   ansible.builtin.debug:
@@ -59,16 +59,16 @@
 
 - name: Configure FTP service
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.FileServ.FTP
     api_version: "3"
     api_method: set
     request_method: POST
-    api_params: "{{ _ftp_current_config.json.data | combine({'enable_ftp': synology_bootstrap_enable_ftp | bool}) }}"
+    api_params: "{{ _ftp_current_config.json.data | combine({'enable_ftp': synology_dsm_api_enable_ftp | bool}) }}"
     ignore_api_errors: [119]
-  when: synology_bootstrap_enable_ftp
+  when: synology_dsm_api_enable_ftp
   register: _configure_ftp
 
 - name: Debug — Configure FTP service
@@ -78,17 +78,17 @@
 
 - name: Configure SFTP service
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.FileServ.FTP.SFTP
     api_version: "1"
     api_method: set
     request_method: POST
     api_params:
-      enable_sftp: "{{ synology_bootstrap_enable_sftp | bool }}"
+      enable_sftp: "{{ synology_dsm_api_enable_sftp | bool }}"
     ignore_api_errors: [119]
-  when: synology_bootstrap_enable_sftp
+  when: synology_dsm_api_enable_sftp
   register: _configure_sftp
 
 - name: Debug — Configure SFTP service

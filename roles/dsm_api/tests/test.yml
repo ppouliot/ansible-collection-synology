@@ -1,25 +1,25 @@
 ---
 # =============================================================================
-# synology_bootstrap role test
+# dsm_api role test
 # Tests DSM API reachability, auth, system info, and SSH enable
-# Usage: ansible-playbook -i <inventory> roles/synology_bootstrap/tests/test.yml
+# Usage: ansible-playbook -i <inventory> roles/dsm_api/tests/test.yml
 # =============================================================================
-- name: Test synology_bootstrap role — DSM API phase
+- name: Test dsm_api role — DSM API phase
   hosts: synology
   connection: local
   gather_facts: false
   tasks:
     - name: Login to DSM API
       synology_dsm_api_request:
-        base_url: "{{ synology_bootstrap_dsm_url }}"
-        validate_certs: "{{ synology_bootstrap_validate_certs }}"
+        base_url: "{{ synology_dsm_api_dsm_url }}"
+        validate_certs: "{{ synology_dsm_api_validate_certs }}"
         api_name: SYNO.API.Auth
         api_version: "3"
         api_method: login
         request_method: POST
         api_params:
-          account: "{{ synology_bootstrap_username }}"
-          passwd: "{{ synology_bootstrap_password }}"
+          account: "{{ synology_dsm_api_username }}"
+          passwd: "{{ synology_dsm_api_password }}"
           session: ansible_test
           format: sid
       register: _test_login
@@ -29,13 +29,13 @@
         that:
           - _test_login.json.success == true
           - _test_login.json.data.sid is defined
-        fail_msg: "DSM API login failed for {{ inventory_hostname }} ({{ synology_bootstrap_dsm_url }})"
+        fail_msg: "DSM API login failed for {{ inventory_hostname }} ({{ synology_dsm_api_dsm_url }})"
         success_msg: "DSM API login OK — {{ inventory_hostname }}"
 
     - name: Get DSM system info
       synology_dsm_api_request:
-        base_url: "{{ synology_bootstrap_dsm_url }}"
-        validate_certs: "{{ synology_bootstrap_validate_certs }}"
+        base_url: "{{ synology_dsm_api_dsm_url }}"
+        validate_certs: "{{ synology_dsm_api_validate_certs }}"
         login_cookie: "{{ _test_login.json.data.sid }}"
         api_name: SYNO.DSM.Info
         api_version: "2"
@@ -53,8 +53,8 @@
 
     - name: Test SSH enable via API
       synology_dsm_api_request:
-        base_url: "{{ synology_bootstrap_dsm_url }}"
-        validate_certs: "{{ synology_bootstrap_validate_certs }}"
+        base_url: "{{ synology_dsm_api_dsm_url }}"
+        validate_certs: "{{ synology_dsm_api_validate_certs }}"
         login_cookie: "{{ _test_login.json.data.sid }}"
         api_name: SYNO.Core.Terminal
         api_version: "3"
@@ -62,7 +62,7 @@
         request_method: POST
         api_params:
           enable_ssh: "true"
-          ssh_port: "{{ synology_bootstrap_ssh_port }}"
+          ssh_port: "{{ synology_dsm_api_ssh_port }}"
       register: _test_ssh_enable
       ignore_errors: true
 
@@ -76,7 +76,7 @@
     - name: Wait for SSH to become available
       ansible.builtin.wait_for:
         host: "{{ ansible_host }}"
-        port: "{{ synology_bootstrap_ssh_port }}"
+        port: "{{ synology_dsm_api_ssh_port }}"
         timeout: 60
         delay: 5
         connect_timeout: 10
@@ -87,13 +87,13 @@
       ansible.builtin.assert:
         that:
           - _test_ssh_wait is not failed
-        fail_msg: "SSH port {{ synology_bootstrap_ssh_port }} not reachable on {{ inventory_hostname }} ({{ ansible_host }})"
-        success_msg: "SSH port open — {{ inventory_hostname }}:{{ synology_bootstrap_ssh_port }}"
+        fail_msg: "SSH port {{ synology_dsm_api_ssh_port }} not reachable on {{ inventory_hostname }} ({{ ansible_host }})"
+        success_msg: "SSH port open — {{ inventory_hostname }}:{{ synology_dsm_api_ssh_port }}"
 
     - name: Logout from DSM API
       synology_dsm_api_request:
-        base_url: "{{ synology_bootstrap_dsm_url }}"
-        validate_certs: "{{ synology_bootstrap_validate_certs }}"
+        base_url: "{{ synology_dsm_api_dsm_url }}"
+        validate_certs: "{{ synology_dsm_api_validate_certs }}"
         login_cookie: "{{ _test_login.json.data.sid }}"
         api_name: SYNO.API.Auth
         api_version: "1"

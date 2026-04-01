@@ -1,17 +1,17 @@
 ---
 - name: Configure auto-block
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Security.AutoBlock
     api_version: "1"
     api_method: set
     request_method: POST
     api_params:
-      enable: "{{ synology_bootstrap_autoblock_enabled | to_json }}"
-      attemptcount: "{{ synology_bootstrap_autoblock_attempts }}"
-      withinminutes: "{{ synology_bootstrap_autoblock_within }}"
+      enable: "{{ synology_dsm_api_autoblock_enabled | to_json }}"
+      attemptcount: "{{ synology_dsm_api_autoblock_attempts }}"
+      withinminutes: "{{ synology_dsm_api_autoblock_within }}"
     ignore_api_errors: [119]
   register: _configure_autoblock
 
@@ -22,9 +22,9 @@
 
 - name: Configure DSM security (HTTPS redirect + TLS)
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Security.DSM
     api_version: "1"
     api_method: set

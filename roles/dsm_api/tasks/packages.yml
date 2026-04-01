@@ -1,9 +1,9 @@
 ---
 - name: Get list of installed packages
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Package
     api_version: "1"
     api_method: list
@@ -27,9 +27,9 @@
 # they must be installed in Phase 2 via: synopkg install <local.spk> over SSH.
 - name: Install official packages via DSM API
   synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
+    base_url: "{{ synology_dsm_api_dsm_url }}"
+    validate_certs: "{{ synology_dsm_api_validate_certs }}"
+    login_sid: "{{ synology_dsm_api_sid }}"
     api_name: SYNO.Core.Package.Installation
     api_version: "2"
     api_method: install
@@ -38,7 +38,7 @@
       id: "{{ item }}"
       type: "0"
     ignore_api_errors: [119, 103]
-  loop: "{{ synology_bootstrap_package_list }}"
+  loop: "{{ synology_dsm_api_package_list }}"
   loop_control:
     label: "{{ item }}"
   when: item not in _synology_installed_pkg_names

@@ -15,7 +15,7 @@ Hands off to `synology_configuration` (SSH-based) when complete.
 ## Architecture
 
 Single role, task files per concern. All tasks use `ppouliot.synology.synology_dsm_api_request`.
-Login/logout handled once in `main.yml` — SID passed to all subtasks via `synology_bootstrap_sid`.
+Login/logout handled once in `main.yml` — SID passed to all subtasks via `synology_dsm_api_sid`.
 
 ---
 
@@ -25,7 +25,7 @@ Login/logout handled once in `main.yml` — SID passed to all subtasks via `syno
 Orchestrator. Login → run all subtasks in order → logout.
 
 ### `tasks/login.yml`
-- `SYNO.API.Auth` login → register `synology_bootstrap_sid`
+- `SYNO.API.Auth` login → register `synology_dsm_api_sid`
 
 ### `tasks/system_info.yml`
 - `SYNO.Core.System` get → set `synology_system_info` fact (firmware version, model, serial)
@@ -33,13 +33,13 @@ Orchestrator. Login → run all subtasks in order → logout.
 
 ### `tasks/users.yml`
 - `SYNO.Core.User` list → register current users
-- `SYNO.Core.User` create → loop over `synology_bootstrap_users`
+- `SYNO.Core.User` create → loop over `synology_dsm_api_users`
 - `SYNO.Core.User` set password, description, email
 - `SYNO.Core.User.Home` set → enable user home service (always runs first)
 
 ### `tasks/groups.yml`
 - `SYNO.Core.Group` list → register current groups
-- `SYNO.Core.Group.Member` add → loop over `synology_bootstrap_group_members`
+- `SYNO.Core.Group.Member` add → loop over `synology_dsm_api_group_members`
   (e.g. add user to administrators group)
 
 ### `tasks/user_home.yml`
@@ -48,13 +48,13 @@ Orchestrator. Login → run all subtasks in order → logout.
 
 ### `tasks/package_feeds.yml`
 - `SYNO.Core.Package.Feed` list → get current feeds
-- `SYNO.Core.Package.Feed` add → loop over `synology_bootstrap_package_feeds`
+- `SYNO.Core.Package.Feed` add → loop over `synology_dsm_api_package_feeds`
   (idempotent: skip if feed name already present)
 
 ### `tasks/packages.yml`
 - `SYNO.Core.Package.Server` list → discover available packages
 - `SYNO.Core.Package` list → get installed packages
-- `SYNO.Core.Package.Installation` install_from_server → loop over `synology_bootstrap_packages`
+- `SYNO.Core.Package.Installation` install_from_server → loop over `synology_dsm_api_packages`
   (idempotent: skip if already installed)
 - `SYNO.Core.Package.Progress` poll → wait for install to complete
 
@@ -72,19 +72,19 @@ Orchestrator. Login → run all subtasks in order → logout.
 
 ### `tasks/shares.yml`
 - `SYNO.Core.Share` list → get current shares
-- `SYNO.Core.Share` create → loop over `synology_bootstrap_shares`
+- `SYNO.Core.Share` create → loop over `synology_dsm_api_shares`
 - `SYNO.Core.Share.Permission` set → loop over share permissions
 
 ### `tasks/network.yml`
 - `SYNO.Core.Network` get → register current network config
-- `SYNO.Core.DDNS.Record` list/create → if `synology_bootstrap_ddns` defined
+- `SYNO.Core.DDNS.Record` list/create → if `synology_dsm_api_ddns` defined
 - `SYNO.Core.Region.NTP` set → configure NTP servers
 
 ### `tasks/security.yml`
 - `SYNO.Core.Security.AutoBlock` set → configure auto-block
 - `SYNO.Core.Security.Firewall` → enable/configure firewall rules
 - `SYNO.Core.Security.DSM` set → HTTPS redirect, TLS settings
-- `SYNO.Core.Certificate` → manage certs if `synology_bootstrap_cert` defined
+- `SYNO.Core.Certificate` → manage certs if `synology_dsm_api_cert` defined
 
 ### `tasks/notifications.yml`
 - `SYNO.Core.Notification.Mail` → configure email notifications
@@ -99,7 +99,7 @@ Orchestrator. Login → run all subtasks in order → logout.
 
 The current `synology_dsm_api_request` plugin needs:
 
-1. **`task_vars` SID injection** — auto-inject `synology_bootstrap_sid` from task vars
+1. **`task_vars` SID injection** — auto-inject `synology_dsm_api_sid` from task vars
    so subtasks don't need to manually pass `login_cookie` every time.
 
 2. **`ignore_errors` on 103** — option to treat error code 103 (access denied) as a warning
@@ -114,23 +114,23 @@ The current `synology_dsm_api_request` plugin needs:
 
 ```yaml
 # Auth
-synology_bootstrap_dsm_url: "http://{{ inventory_hostname }}:5000"
-synology_bootstrap_username: admin
-synology_bootstrap_password: ""
-synology_bootstrap_validate_certs: false
+synology_dsm_api_dsm_url: "http://{{ inventory_hostname }}:5000"
+synology_dsm_api_username: admin
+synology_dsm_api_password: ""
+synology_dsm_api_validate_certs: false
 
 # Features to enable (all default false — opt-in)
-synology_bootstrap_enable_user_home: true
-synology_bootstrap_user_home_location: "/volume1"
-synology_bootstrap_enable_ssh: true
-synology_bootstrap_ssh_port: 22
-synology_bootstrap_enable_smb: true
-synology_bootstrap_enable_nfs: false
-synology_bootstrap_enable_afp: false
-synology_bootstrap_enable_ftp: false
+synology_dsm_api_enable_user_home: true
+synology_dsm_api_user_home_location: "/volume1"
+synology_dsm_api_enable_ssh: true
+synology_dsm_api_ssh_port: 22
+synology_dsm_api_enable_smb: true
+synology_dsm_api_enable_nfs: false
+synology_dsm_api_enable_afp: false
+synology_dsm_api_enable_ftp: false
 
 # Users to create (list of dicts)
-synology_bootstrap_users: []
+synology_dsm_api_users: []
 # - name: beavis
 #   password: "changeme"
 #   groups: [administrators, users]
@@ -138,25 +138,25 @@ synology_bootstrap_users: []
 #   description: ""
 
 # Group membership (list of dicts)
-synology_bootstrap_group_members: []
+synology_dsm_api_group_members: []
 # - group: administrators
 #   members: [beavis, peter]
 
 # Package feeds (list of dicts)
-synology_bootstrap_package_feeds:
+synology_dsm_api_package_feeds:
   - name: SynoCommunity
     feed: https://packages.synocommunity.com
 
 # Packages to install (list of package IDs)
-synology_bootstrap_packages: []
+synology_dsm_api_packages: []
 # - Git
 # - Python3
 
 # Shares (list of dicts)
-synology_bootstrap_shares: []
+synology_dsm_api_shares: []
 
 # NTP
-synology_bootstrap_ntp_servers:
+synology_dsm_api_ntp_servers:
   - 0.pool.ntp.org
   - 1.pool.ntp.org
 ```
