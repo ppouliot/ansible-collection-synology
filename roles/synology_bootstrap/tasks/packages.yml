@@ -21,55 +21,11 @@
     _synology_installed_pkg_names: []
   when: not (_synology_installed_packages.json.success | default(false))
 
-- name: Auto-detect latest available Python package from DSM
-  when: synology_bootstrap_python_package == 'auto'
-  block:
-    - name: Query available packages from DSM package server
-      synology_dsm_api_request:
-        base_url: "{{ synology_bootstrap_dsm_url }}"
-        validate_certs: "{{ synology_bootstrap_validate_certs }}"
-        login_sid: "{{ synology_bootstrap_sid }}"
-        api_name: SYNO.Core.Package.Server
-        api_version: "2"
-        api_method: list
-        request_method: POST
-        ignore_api_errors: [119]
-      register: _synology_available_packages
-
-    - name: Set auto-detected Python package fact
-      ansible.builtin.set_fact:
-        _synology_python_package: >-
-          {{
-            (_synology_available_packages.json.data.packages | default([]))
-            | map(attribute='id')
-            | select('match', '^python3[0-9]+$')
-            | sort
-            | last
-            | default('python314')
-          }}
-
-    - name: Debug — auto-detected Python package
-      ansible.builtin.debug:
-        msg: "Auto-detected Python package: {{ _synology_python_package }}"
-
-- name: Set Python package fact (explicit)
-  ansible.builtin.set_fact:
-    _synology_python_package: "{{ synology_bootstrap_python_package }}"
-  when: synology_bootstrap_python_package != 'auto'
-
-- name: Build resolved package list
-  ansible.builtin.set_fact:
-    _synology_resolved_package_list: >-
-      {{
-        synology_bootstrap_package_list
-        | map('regex_replace', '^__python__$', _synology_python_package)
-        | list
-      }}
-
-# NOTE: type 0 = official Synology packages, type 1 = community/3rd-party packages.
-# Community packages (e.g. python314 from SynoCommunity) will return error 103 with type 0.
-# Use synology_bootstrap_community_packages list for packages that need type 1.
-- name: Install official packages via DSM API (type 0)
+# Phase 1: Install official Synology packages via DSM HTTP API.
+# These packages exist in the default Synology catalog (no extra feed required).
+# Community packages (SynoCommunity, etc.) CANNOT be installed this way —
+# they must be installed in Phase 2 via: synopkg install <local.spk> over SSH.
+- name: Install official packages via DSM API
   synology_dsm_api_request:
     base_url: "{{ synology_bootstrap_dsm_url }}"
     validate_certs: "{{ synology_bootstrap_validate_certs }}"
@@ -82,30 +38,11 @@
       id: "{{ item }}"
       type: "0"
     ignore_api_errors: [119, 103]
-  loop: "{{ _synology_resolved_package_list | difference(synology_bootstrap_community_packages) }}"
+  loop: "{{ synology_bootstrap_package_list }}"
   loop_control:
     label: "{{ item }}"
   when: item not in _synology_installed_pkg_names
   register: _pkg_install_results
-
-- name: Install community packages via DSM API (type 1 — requires SynoCommunity feed)
-  synology_dsm_api_request:
-    base_url: "{{ synology_bootstrap_dsm_url }}"
-    validate_certs: "{{ synology_bootstrap_validate_certs }}"
-    login_sid: "{{ synology_bootstrap_sid }}"
-    api_name: SYNO.Core.Package.Installation
-    api_version: "2"
-    api_method: install
-    request_method: POST
-    api_params:
-      id: "{{ item }}"
-      type: "1"
-    ignore_api_errors: [119, 103]
-  loop: "{{ _synology_resolved_package_list | select('in', synology_bootstrap_community_packages) | list }}"
-  loop_control:
-    label: "{{ item }}"
-  when: item not in _synology_installed_pkg_names
-  register: _pkg_community_install_results
 
 - name: Debug — package install skipped (insufficient permissions)
   ansible.builtin.debug:

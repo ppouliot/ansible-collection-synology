@@ -60,27 +60,21 @@ synology_bootstrap_package_feeds:
 # Use synology_package_list in the synology_configuration role (SSH phase).
 synology_bootstrap_packages: []  # unused, kept for backwards compat
 
-# Packages to install via DSM API (Phase 1)
-# These are installed before SSH is available
-# Requires primary admin account
-# Python package to install. Set to 'auto' to query DSM and pick the latest
-# available pythonXYY package. Set explicitly (e.g. 'python314') to pin a version.
-synology_bootstrap_python_package: python314
-
-# Community packages (SynoCommunity feed) — installed with type 1 via DSM API
-# These packages will return error 103 with type 0 (official only)
-synology_bootstrap_community_packages:
-  - "{{ synology_bootstrap_python_package }}"
-  - byobu
-
+# Phase 1: Official packages installable via DSM HTTP API (install_from_server).
+# These are in the default Synology package catalog — no feed required.
+# Community packages (SynoCommunity etc.) CANNOT be installed this way;
+# use synopkg install <local.spk> over SSH in Phase 2.
 synology_bootstrap_package_list:
-  - __python__
+  - ContainerManager
   - Git
+  - Virtualization
+
+# Phase 2 (SSH): Community packages installed via synopkg install <local.spk>.
+# Handled by the synology_configuration role, NOT the DSM API.
+# Listed here for reference / inventory override.
+synology_bootstrap_community_packages:
+  - python314
   - byobu
-  - Tailscale
-  - Git
-  - byobu
-  - Tailscale
 
 # Shared folders to create (list of dicts)
 # - name: data
