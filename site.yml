@@ -51,7 +51,7 @@
 # Run 3+: uses python3.14 (host_vars). Full capability.
 - name: Phase 2 — Configure via SSH
   hosts: synology
-  gather_facts: false
+  gather_facts: true
   tags: dsm_configuration
   pre_tasks:
     - name: Wait for SSH to be ready

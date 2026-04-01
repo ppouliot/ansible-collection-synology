@@ -3,3 +3,5 @@
 playbooks/facts/
 *.retry
 .vault_pass
+# Ansible fact cache — runtime state, not source
+.facts_cache/
