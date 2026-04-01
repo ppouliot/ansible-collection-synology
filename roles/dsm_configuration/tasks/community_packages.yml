@@ -2,10 +2,9 @@
 # Install SynoCommunity packages via synopkg install <local.spk>
 #
 # DSM HTTP API returns error 103 for community packages (install_from_server blocked).
-# The only supported method is: download .spk locally, copy to NAS, run synopkg install.
-#
-# SPK URLs are fetched from packages.synocommunity.com at runtime using the NAS arch/build.
-# Arch is derived from ansible_architecture (x86_64 → mapped to DSM arch via synology_dsm_arch).
+# The correct method: the NAS fetches the SPK catalog JSON itself, downloads the .spk
+# directly, and installs it — no traffic routed through the controller at all.
+# This avoids saturating the WAN link to the remote site.
 
 - name: Get installed packages list
   become: true
@@ -18,13 +17,6 @@
   ansible.builtin.set_fact:
     _installed_pkg_names: "{{ _installed_pkgs.stdout_lines | map('trim') | list }}"
 
-- name: Ensure SPK temp directory exists on controller
-  ansible.builtin.file:
-    path: "{{ synology_dsm_spk_tmp }}"
-    state: directory
-    mode: '0755'
-  delegate_to: localhost
-
 - name: Ensure SPK temp directory exists on NAS
   become: true
   ansible.builtin.file:
@@ -32,13 +24,11 @@
     state: directory
     mode: '0755'
 
-- name: Fetch community package SPK URLs from SynoCommunity
+- name: Fetch community package SPK URLs from SynoCommunity (runs on NAS)
   ansible.builtin.uri:
     url: "https://packages.synocommunity.com/?language=enu&arch={{ synology_dsm_arch }}&build={{ synology_dsm_build }}&major=7&micro=2&minor=3&nano=0&package_update_channel=stable"
     return_content: true
   register: _synocommunity_catalog
-  delegate_to: localhost
-  run_once: false
 
 - name: Build SPK URL map from catalog
   ansible.builtin.set_fact:
@@ -57,24 +47,13 @@
         )
       }}
 
-- name: Download SPK files to controller
+- name: Download SPK files directly on NAS (no WAN relay through controller)
+  become: true
   ansible.builtin.get_url:
     url: "{{ item.value }}"
     dest: "{{ synology_dsm_spk_tmp }}/{{ item.key }}.spk"
     mode: '0644'
     force: false
-  loop: "{{ _spk_url_map | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
-  delegate_to: localhost
-  when: item.key not in _installed_pkg_names
-
-- name: Copy SPK files to NAS
-  become: true
-  ansible.builtin.copy:
-    src: "{{ synology_dsm_spk_tmp }}/{{ item.key }}.spk"
-    dest: "{{ synology_dsm_spk_tmp }}/{{ item.key }}.spk"
-    mode: '0644'
   loop: "{{ _spk_url_map | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
