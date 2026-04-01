@@ -25,7 +25,7 @@
   become: true
   ansible.builtin.command:
     cmd: >
-      synowebapi --SYNO.Core.Region.NTP.set version=3
+      /usr/syno/bin/synowebapi --SYNO.Core.Region.NTP.set version=3
       timezone="{{ synology_dsm_timezone }}"
       ntpserver="{{ synology_dsm_ntp_server }}"
       enable_ntp="ntp"
