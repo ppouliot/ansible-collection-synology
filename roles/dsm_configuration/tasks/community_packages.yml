@@ -18,7 +18,14 @@
   ansible.builtin.set_fact:
     _installed_pkg_names: "{{ _installed_pkgs.stdout_lines | map('trim') | list }}"
 
-- name: Ensure SPK temp directory exists
+- name: Ensure SPK temp directory exists on controller
+  ansible.builtin.file:
+    path: "{{ synology_dsm_spk_tmp }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+
+- name: Ensure SPK temp directory exists on NAS
   become: true
   ansible.builtin.file:
     path: "{{ synology_dsm_spk_tmp }}"
