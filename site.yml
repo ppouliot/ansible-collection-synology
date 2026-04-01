@@ -26,11 +26,12 @@
 # ── Python interpreter ladder ────────────────────────────────────────────────
 #
 #   Run 1   connection=local        ansible_playbook_python (controller)
-#   Run 2   SSH /bin/python3        always present on DSM, minimal
-#           → installs python314
-#           → raw discovers path
-#           → lineinfile writes to host_vars/<host>/main.yml
-#   Run 3+  SSH python3.14          from host_vars, full capability
+#   Run 2   SSH auto_silent         discovers /bin/python3 (pre-install)
+#           → installs python314 via community_packages
+#           → setup re-runs, auto_silent now finds python3.14
+#   Run 3+  SSH auto_silent         discovers python3.14 automatically
+#
+# host_vars are never mutated — auto_silent handles interpreter selection.
 #
 # =============================================================================
 

@@ -15,8 +15,8 @@ startup — values written mid-run are not visible until the next invocation.
 | Run | Tag | Interpreter | What happens |
 |-----|-----|-------------|--------------|
 | 1 | `dsm_api` | controller python | SSH enabled, SynoCommunity feed added, groups/feeds configured |
-| 2 | `dsm_configuration` | `/bin/python3` (DSM built-in) | python314 installed, `host_vars` updated with python3.14 path |
-| 3+ | `dsm_configuration` | `python3.14` (from host_vars) | Full Ansible capability — Docker, pip, containers |
+| 2 | `dsm_configuration` | `auto_silent` → `/bin/python3` | python314 installed; `setup` re-runs, auto_silent promotes to python3.14 |
+| 3+ | `dsm_configuration` | `auto_silent` → `python3.14` | Full Ansible capability — Docker, pip, containers |
 
 ```bash
 # Run 1 — DSM API bootstrap

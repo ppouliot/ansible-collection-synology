@@ -10,23 +10,9 @@
     file: syno_community.yml
   tags: syno_community
 
-# ── Step 2: Python interpreter bootstrap (raw — works on any Python version) ──
-- name: Python interpreter bootstrap
-  block:
-    - name: Find installed Python 3.x interpreter (raw)
-      ansible.builtin.raw: find /var/packages -name 'python3*' -type f 2>/dev/null | grep '/bin/python3' | sort -V | tail -1
-      register: _syno_python_path
-      changed_when: false
-      check_mode: false
-
-    - name: Set ansible_python_interpreter to discovered Python
-      ansible.builtin.set_fact:
-        ansible_python_interpreter: "{{ _syno_python_path.stdout | trim | default(synology_python_interpreter_path) }}"
-      when: (_syno_python_path.stdout | default('') | trim) | length > 0
-
-    - name: Gather facts using upgraded Python
-      ansible.builtin.setup:
-  # End Block
+# ── Step 2: Gather facts (auto_silent discovers best available Python) ────────
+- name: Gather facts — auto_silent picks highest available Python interpreter
+  ansible.builtin.setup:
 
 # ── Step 3: Gather facts ──────────────────────────────────────────────────────
 - name: Gather facts about the synology
@@ -96,36 +82,7 @@
 # interpreter, persist it to host_vars on the controller (so it survives
 # across runs and doesn't rely on ephemeral set_fact), then re-gather facts.
 
-- name: Re-discover highest installed Python interpreter
-  ansible.builtin.raw: find /var/packages -name 'python3*' -type f 2>/dev/null | grep '/bin/python3' | sort -V | tail -1
-  register: _syno_python_path_post
-  changed_when: false
-  check_mode: false
-
-- name: Set discovered interpreter fact
-  ansible.builtin.set_fact:
-    _discovered_python: "{{ _syno_python_path_post.stdout | trim }}"
-  when: (_syno_python_path_post.stdout | default('') | trim) | length > 0
-
-- name: Persist ansible_python_interpreter to host_vars on controller
-  ansible.builtin.lineinfile:
-    path: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/main.yml"
-    regexp: '^ansible_python_interpreter:'
-    line: "ansible_python_interpreter: {{ _discovered_python }}"
-    create: false
-  delegate_to: localhost
-  when:
-    - _discovered_python is defined
-    - _discovered_python | length > 0
-
-- name: Promote ansible_python_interpreter for remainder of this play
-  ansible.builtin.set_fact:
-    ansible_python_interpreter: "{{ _discovered_python }}"
-  when:
-    - _discovered_python is defined
-    - _discovered_python | length > 0
-
-- name: Re-gather facts with promoted Python interpreter
+- name: Re-gather facts — auto_silent re-discovers highest Python after python314 install
   ansible.builtin.setup:
 
 # ── Step 9: Packages, pip, Docker ─────────────────────────────────────────────
