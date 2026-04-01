@@ -7,6 +7,28 @@ Ansible Collection for managing Synology NAS devices running DSM 7.x.
 - Ansible >= 2.12
 - Synology DSM 7.x
 
+## Bootstrap — Run Order
+
+Provisioning requires **discrete runs** in order. Ansible loads `host_vars` at
+startup — values written mid-run are not visible until the next invocation.
+
+| Run | Tag | Interpreter | What happens |
+|-----|-----|-------------|--------------|
+| 1 | `dsm_api` | controller python | SSH enabled, SynoCommunity feed added, groups/feeds configured |
+| 2 | `dsm_configuration` | `/bin/python3` (DSM built-in) | python314 installed, `host_vars` updated with python3.14 path |
+| 3+ | `dsm_configuration` | `python3.14` (from host_vars) | Full Ansible capability — Docker, pip, containers |
+
+```bash
+# Run 1 — DSM API bootstrap
+ansible-playbook -i inventory/ site.yml --tags dsm_api
+
+# Run 2 — SSH bootstrap, installs python314, writes host_vars
+ansible-playbook -i inventory/ site.yml --tags dsm_configuration
+
+# Run 3+ — Full configuration with python3.14
+ansible-playbook -i inventory/ site.yml --tags dsm_configuration
+```
+
 ## Installation
 
 ```bash

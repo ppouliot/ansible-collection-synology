@@ -2,36 +2,39 @@
 # =============================================================================
 # site.yml — Synology NAS provisioning
 #
-# Phase 1: DSM API bootstrap (no SSH required)
-#   - Enable SSH, SMB, user homes
-#   - Add package feeds, manage users/groups
+# IMPORTANT: This playbook requires discrete runs in order.
+# Ansible loads inventory vars at startup — host_vars written mid-run are
+# NOT visible until the next invocation. Each run builds the foundation
+# for the next.
 #
-# Phase 2: SSH configuration
-#   - Install packages, SSH keys, pip, docker, etc.
+# ── Run order ────────────────────────────────────────────────────────────────
 #
-# Usage:
-#   ansible-playbook -i inventory.ini site.yml
-#   ansible-playbook -i inventory.ini site.yml --tags dsm_api
-#   ansible-playbook -i inventory.ini site.yml --tags dsm_configuration
+#   Run 1 — DSM API bootstrap (no SSH needed):
+#     ansible-playbook site.yml --tags dsm_api
+#     Result: SSH enabled, SynoCommunity feed added, feeds/groups configured
+#
+#   Run 2 — SSH bootstrap (python3 → python314):
+#     ansible-playbook site.yml --tags dsm_configuration
+#     Interpreter: /bin/python3 (group_vars default)
+#     Result: python314 installed, host_vars updated with python3.14 path
+#
+#   Run 3+ — Full configuration (python3.14):
+#     ansible-playbook site.yml --tags dsm_configuration
+#     Interpreter: /var/packages/Python3.14/target/bin/python3.14 (host_vars)
+#     Result: full Ansible module support, Docker, pip, etc.
+#
+# ── Python interpreter ladder ────────────────────────────────────────────────
+#
+#   Run 1   connection=local        ansible_playbook_python (controller)
+#   Run 2   SSH /bin/python3        always present on DSM, minimal
+#           → installs python314
+#           → raw discovers path
+#           → lineinfile writes to host_vars/<host>/main.yml
+#   Run 3+  SSH python3.14          from host_vars, full capability
+#
 # =============================================================================
 
-# =============================================================================
-# Python interpreter bootstrap ladder:
-#
-#   Phase 1 (dsm_api)     connection=local, ansible_playbook_python
-#                         No SSH. DSM HTTP API only.
-#
-#   Phase 2 (dsm_cfg)     SSH, /bin/python3 (always present on DSM)
-#                         Installs python314 via community_packages.
-#                         Discovers highest Python, writes to host_vars,
-#                         promotes for remainder of play.
-#
-#   Phase 3+              SSH, ansible_python_interpreter from host_vars
-#                         (e.g. /var/packages/Python3.14/target/bin/python3.14)
-#                         Set automatically after first Phase 2 run.
-# =============================================================================
-
-# ── Phase 1: Bootstrap via DSM API ──────────────────────────────────────────
+# ── Phase 1: Bootstrap via DSM API (Run 1) ───────────────────────────────────
 - name: Phase 1 — Bootstrap via DSM API
   hosts: synology
   connection: local
@@ -42,11 +45,9 @@
   roles:
     - dsm_api
 
-# ── Phase 2: Configure via SSH ───────────────────────────────────────────────
-# Interpreter: /bin/python3 from group_vars (bootstrap default).
-# After community_packages installs python314, the role discovers it,
-# writes it to host_vars/<host>/main.yml, and promotes it mid-play.
-# Subsequent runs use the host_vars value automatically.
+# ── Phase 2: Configure via SSH (Run 2 + Run 3+) ──────────────────────────────
+# Run 2: uses /bin/python3 (group_vars). Installs python314, writes host_vars.
+# Run 3+: uses python3.14 (host_vars). Full capability.
 - name: Phase 2 — Configure via SSH
   hosts: synology
   gather_facts: false
