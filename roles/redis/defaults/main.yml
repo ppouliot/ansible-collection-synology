@@ -1,0 +1,10 @@
+---
+redis_package_name: redis
+redis_port: 6379
+redis_bind: "0.0.0.0"
+redis_password: ""
+redis_maxmemory: "256mb"
+redis_maxmemory_policy: "allkeys-lru"
+synology_dsm_spk_tmp: "/tmp/syno_spk"
+synology_dsm_arch: "apollolake"
+synology_dsm_build: "86009"

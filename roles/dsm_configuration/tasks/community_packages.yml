@@ -19,6 +19,7 @@
 - name: Set installed packages fact
   ansible.builtin.set_fact:
     _installed_pkg_names: "{{ _installed_pkgs.stdout_lines | map('trim') | list }}"
+    cacheable: true
 
 - name: Ensure SPK temp directory exists on NAS
   become: true

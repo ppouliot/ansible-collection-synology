@@ -1,0 +1,32 @@
+#!/usr/bin/env ansible-playbook
+---
+# Bootstrap Redis on ds218 hosts via SynoCommunity.
+# Prerequisite for switching Ansible fact_caching backend from jsonfile to redis.
+# Run order:
+#   ansible-playbook playbooks/redis_bootstrap.yml --tags dsm_api    (add feed)
+#   ansible-playbook playbooks/redis_bootstrap.yml --tags redis       (install)
+
+- name: Phase 1 — Ensure SynoCommunity feed present
+  hosts: synology
+  connection: local
+  gather_facts: false
+  tags: dsm_api
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  roles:
+    - role: dsm_api
+      vars:
+        synology_dsm_api_package_feeds:
+          - name: SynoCommunity
+            feed: https://packages.synocommunity.com
+
+- name: Phase 2 — Install Redis on ds218 hosts
+  hosts: synology
+  gather_facts: true
+  tags: redis
+  pre_tasks:
+    - name: Limit to ds218 hosts
+      ansible.builtin.meta: end_host
+      when: inventory_hostname not in ['ds218p01', 'ds218p02']
+  roles:
+    - role: interoperable.synology.redis

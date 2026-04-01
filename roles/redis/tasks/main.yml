@@ -1,0 +1,80 @@
+---
+# Install Redis from SynoCommunity via synopkg on the NAS.
+# The NAS fetches the SPK catalog itself, downloads the .spk directly,
+# and installs it — same pattern as community_packages.yml.
+
+- name: Get installed packages list
+  become: true
+  ansible.builtin.command:
+    cmd: /usr/syno/bin/synopkg list --name
+  register: _installed_pkgs
+  changed_when: false
+
+- name: Set redis_installed fact
+  ansible.builtin.set_fact:
+    redis_installed: "{{ redis_package_name in _installed_pkgs.stdout }}"
+
+- name: Ensure SPK temp directory exists on NAS
+  become: true
+  ansible.builtin.file:
+    path: "{{ synology_dsm_spk_tmp }}"
+    state: directory
+    mode: '0755'
+
+- name: Fetch SynoCommunity catalog from NAS
+  ansible.builtin.uri:
+    url: >-
+      https://packages.synocommunity.com/?language=enu&arch={{ synology_dsm_arch }}&build={{ synology_dsm_build }}&major=7&micro=2&minor=3&nano=0&package_update_channel=stable
+    return_content: true
+  register: _synocommunity_catalog
+
+- name: Build Redis SPK URL from catalog
+  ansible.builtin.set_fact:
+    _redis_spk_url: >-
+      {{
+        _synocommunity_catalog.json.packages
+        | selectattr('package', 'equalto', redis_package_name)
+        | map(attribute='link')
+        | first
+      }}
+
+- name: Download Redis SPK directly on NAS
+  become: true
+  ansible.builtin.get_url:
+    url: "{{ _redis_spk_url }}"
+    dest: "{{ synology_dsm_spk_tmp }}/{{ redis_package_name }}.spk"
+    mode: '0644'
+    force: false
+  when: not redis_installed
+
+- name: Install Redis via synopkg
+  become: true
+  ansible.builtin.command:
+    cmd: "/usr/syno/bin/synopkg install {{ synology_dsm_spk_tmp }}/{{ redis_package_name }}.spk"
+  when: not redis_installed
+  register: _synopkg_install
+  changed_when: _synopkg_install.rc == 0
+
+- name: Start Redis
+  become: true
+  ansible.builtin.command:
+    cmd: /usr/syno/bin/synopkg start {{ redis_package_name }}
+  changed_when: false
+  failed_when: false
+
+- name: Clean up Redis SPK from NAS
+  become: true
+  ansible.builtin.file:
+    path: "{{ synology_dsm_spk_tmp }}/{{ redis_package_name }}.spk"
+    state: absent
+
+- name: Verify Redis status
+  become: true
+  ansible.builtin.command:
+    cmd: /usr/syno/bin/synopkg status {{ redis_package_name }}
+  register: _redis_status
+  changed_when: false
+
+- name: Report Redis status
+  ansible.builtin.debug:
+    var: _redis_status.stdout

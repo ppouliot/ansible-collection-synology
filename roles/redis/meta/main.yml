@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  namespace: interoperable
+  role_name: redis
+  author: Peter Pouliot
+  description: Install and manage Redis from SynoCommunity on Synology DSM 7.x
+  min_ansible_version: "2.12"
+  platforms:
+    - name: GenericBSD
+      versions: [all]
+dependencies: []

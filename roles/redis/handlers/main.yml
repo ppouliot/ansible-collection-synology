@@ -1,0 +1,6 @@
+---
+- name: Restart redis
+  become: true
+  ansible.builtin.command:
+    cmd: /usr/syno/bin/synopkg restart {{ redis_package_name }}
+  changed_when: true
