@@ -45,7 +45,14 @@
       tags: package_facts
   # End Block
 
-# ── Step 4: SSH keys and critical tooling ────────────────────────────────────
+# ── Step 4: Timezone ─────────────────────────────────────────────────────────
+- name: Set DSM timezone
+  ansible.builtin.include_tasks:
+    file: timezone.yml
+  when: synology_dsm_timezone | default('') | length > 0
+  tags: timezone
+
+# ── Step 5: SSH keys and critical tooling ────────────────────────────────────
 - name: SSH configuration and Install Critical Tooling
   block:
     - name: Install ssh keys from url for more secure remote management
@@ -58,7 +65,7 @@
       tags: Git
   # End Block
 
-# ── Step 5: User home ─────────────────────────────────────────────────────────
+# ── Step 6: User home ─────────────────────────────────────────────────────────
 - name: User home configuration
   block:
     - name: Enable user home service
@@ -67,7 +74,7 @@
       tags: user_home
   # End Block
 
-# ── Step 6: DNS ───────────────────────────────────────────────────────────────
+# ── Step 7: DNS ───────────────────────────────────────────────────────────────
 - name: DNS configuration
   block:
     - name: Integrating cloudflare dynamic DDNS scripts into native DDNS
@@ -77,7 +84,7 @@
       tags: cloudflare_ddns_scripts
   # End Block
 
-# ── Step 7: Packages, pip, Docker ─────────────────────────────────────────────
+# ── Step 8: Packages, pip, Docker ─────────────────────────────────────────────
 - name: Configure native package management, python-pip, and docker
   block:
     - name: Install native Synology packages (fallback — prefer synology_dsm_api_package_list for API install)

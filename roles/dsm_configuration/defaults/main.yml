@@ -3,6 +3,13 @@
 user_puid: "{{ ansible_facts.users[ansible_user_id].uid }}"
 #group_pgid: "100"
 group_pgid: "{{ ansible_facts.users[ansible_user_id].group }}"
+# Timezone — DSM UI label string (NOT POSIX/Olson format)
+# Valid keys: "Eastern", "Pacific", "Central", "Mountain", "UTC", "Bogota", etc.
+# See /usr/syno/synoman/webman/texts/enu/strings on the NAS for full list.
+# Set to "" to skip timezone configuration.
+synology_dsm_timezone: "Eastern"
+synology_dsm_ntp_server: "time.google.com"
+
 default_timezone: "America/New_York"
 
 # Python interpreter — set to system default until python3.12 is installed

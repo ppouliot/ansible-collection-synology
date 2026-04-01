@@ -1,0 +1,43 @@
+---
+# Set DSM timezone via synowebapi over SSH.
+#
+# SYNO.Core.Region.NTP set requires the built-in admin account via HTTP API (error 119).
+# synowebapi bypasses that restriction when run locally as root on the NAS.
+#
+# Valid DSM timezone keys match the Synology UI dropdown labels, e.g.:
+#   "Eastern"      → (GMT-05:00) Eastern Time (US & Canada)
+#   "Bogota"       → (GMT-05:00) Bogota, Lima, Quito, Rio Branco
+#   "Pacific"      → (GMT-08:00) Pacific Time (US & Canada)
+#   "UTC"          → (GMT+00:00) UTC
+#
+# Keys are found in /usr/syno/synoman/webman/texts/enu/strings on the NAS.
+# Default: "Eastern" (America/New_York equivalent)
+
+- name: Get current DSM timezone
+  become: true
+  ansible.builtin.command:
+    cmd: grep '^timezone=' /etc/synoinfo.conf
+  register: _current_timezone
+  changed_when: false
+  failed_when: false
+
+- name: Set DSM timezone via synowebapi
+  become: true
+  ansible.builtin.command:
+    cmd: >
+      synowebapi --SYNO.Core.Region.NTP.set version=3
+      timezone="{{ synology_dsm_timezone }}"
+      ntpserver="{{ synology_dsm_ntp_server }}"
+      enable_ntp="ntp"
+  register: _set_timezone
+  changed_when: _set_timezone.rc == 0
+  failed_when: _set_timezone.rc != 0 and 'already' not in _set_timezone.stderr | default('')
+  when: >
+    synology_dsm_timezone | length > 0 and
+    ('timezone="' + synology_dsm_timezone + '"') not in _current_timezone.stdout | default('')
+
+- name: Display timezone status
+  ansible.builtin.debug:
+    msg: >
+      Timezone: {{ _current_timezone.stdout | default('unknown') }}
+      {% if _set_timezone is changed %} → set to {{ synology_dsm_timezone }}{% endif %}
