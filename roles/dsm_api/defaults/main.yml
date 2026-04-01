@@ -57,7 +57,7 @@ synology_dsm_api_package_feeds:
     feed: https://packages.synocommunity.com
 
 # Packages: NOT handled here — DSM API blocks installation (error 103).
-# Use synology_package_list in the synology_configuration role (SSH phase).
+# Use synology_package_list in the dsm_configuration role (SSH phase).
 synology_dsm_api_packages: []  # unused, kept for backwards compat
 
 # Phase 1: Official packages installable via DSM HTTP API (install_from_server).
@@ -70,7 +70,7 @@ synology_dsm_api_package_list:
   - Virtualization
 
 # Phase 2 (SSH): Community packages installed via synopkg install <local.spk>.
-# Handled by the synology_configuration role, NOT the DSM API.
+# Handled by the dsm_configuration role, NOT the DSM API.
 # Listed here for reference / inventory override.
 synology_dsm_api_community_packages:
   - python314

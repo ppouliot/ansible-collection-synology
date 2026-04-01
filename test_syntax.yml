@@ -1,5 +1,5 @@
 ---
-- name: Syntax check wrapper for synology_configuration role
+- name: Syntax check wrapper for dsm_configuration role
   hosts: localhost
   gather_facts: false
   vars:
@@ -12,6 +12,6 @@
     synology_ghcr_pat: "placeholder"
     synology_ghcr_user: "ppouliot"
   tasks:
-    - name: Include synology_configuration main tasks
+    - name: Include dsm_configuration main tasks
       ansible.builtin.include_tasks:
-        file: roles/synology_configuration/tasks/main.yml
+        file: roles/dsm_configuration/tasks/main.yml

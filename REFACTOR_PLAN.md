@@ -38,11 +38,11 @@ interoperable.synology           interoperable.synology
 ### TASK H — Rename `synology_configuration` → `dsm_configuration`
 
 Same pattern as the `dsm_api` rename. Touch:
-- `roles/synology_configuration/` → `roles/dsm_configuration/`
+- `roles/dsm_configuration/` → `roles/dsm_configuration/`
 - All `synology_configuration` role references in plays, includes, README
 - FQCN: `interoperable.synology.dsm_configuration`
 - Inventory repo: `playbooks/synology_configure.yml` role reference
-- Var prefix: `synology_configuration_` → `synology_dsm_configuration_` (if any)
+- Var prefix: `synology_dsm_configuration_` → `synology_dsm_configuration_` (if any)
 
 ---
 

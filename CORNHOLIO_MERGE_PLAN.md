@@ -11,7 +11,7 @@
 
 ```bash
 cd /Users/peter/.openclaw/workspace/ansible-collection-synology
-git diff interoperable/main -- roles/synology_configuration/
+git diff interoperable/main -- roles/dsm_configuration/
 git diff interoperable/main -- roles/synology_monitoring/
 ```
 

@@ -1,3 +1,5 @@
-facts/
+# Ignore generated local fact output dirs, but not role task source dirs
+/facts/
+playbooks/facts/
 *.retry
 .vault_pass

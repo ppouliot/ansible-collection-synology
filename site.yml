@@ -12,7 +12,7 @@
 # Usage:
 #   ansible-playbook -i inventory.ini site.yml
 #   ansible-playbook -i inventory.ini site.yml --tags dsm_api
-#   ansible-playbook -i inventory.ini site.yml --tags synology_configuration
+#   ansible-playbook -i inventory.ini site.yml --tags dsm_configuration
 # =============================================================================
 
 # ── Phase 1: Bootstrap via DSM API ──────────────────────────────────────────
@@ -30,7 +30,7 @@
 - name: Phase 2 — Configure via SSH
   hosts: synology
   gather_facts: false
-  tags: synology_configuration
+  tags: dsm_configuration
   pre_tasks:
     - name: Wait for SSH to be ready
       ansible.builtin.wait_for:
@@ -43,4 +43,4 @@
       delegate_to: localhost
       tags: always
   roles:
-    - synology_configuration
+    - dsm_configuration

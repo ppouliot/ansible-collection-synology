@@ -1,4 +1,4 @@
-# synology_configuration
+# dsm_configuration
 
 Opinionated synonology configuration to install and configure configuration
 
@@ -25,10 +25,10 @@ An example use case:
 - hosts: servers
   tasks:
 
-    - name: synology_configuration
+    - name: dsm_configuration
       import_role:
-        name: ppouliot.synology.synology_configuration
-      tags: [ synology_configuration ]
+        name: interoperable.synology.dsm_configuration
+      tags: [ dsm_configuration ]
 ```
 
 

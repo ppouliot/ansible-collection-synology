@@ -1,10 +1,10 @@
 ---
 # =============================================================================
-# synology_configuration role test
+# dsm_configuration role test
 # Tests SSH connectivity, fact gathering, and package enumeration
-# Usage: ansible-playbook -i <inventory> roles/synology_configuration/tests/test.yml
+# Usage: ansible-playbook -i <inventory> roles/dsm_configuration/tests/test.yml
 # =============================================================================
-- name: Test synology_configuration role — SSH phase
+- name: Test dsm_configuration role — SSH phase
   hosts: synology
   gather_facts: false
   tasks:
