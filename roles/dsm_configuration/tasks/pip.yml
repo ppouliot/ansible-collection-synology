@@ -21,19 +21,11 @@
   ignore_errors: true
   changed_when: false
 
-# NAS may have no outbound internet — download get-pip.py on controller, copy over.
 - name: "pip: Bootstrap pip via get-pip.py if not found"
   block:
-    - name: "pip: Download get-pip.py on controller"
+    - name: "pip: Retrieve get-pip.py"
       ansible.builtin.get_url:
         url: https://bootstrap.pypa.io/get-pip.py
-        dest: /tmp/get-pip.py
-        mode: '0770'
-      delegate_to: localhost
-
-    - name: "pip: Copy get-pip.py to NAS"
-      ansible.builtin.copy:
-        src: /tmp/get-pip.py
         dest: /volume1/get-pip.py
         mode: '0770'
 
@@ -43,7 +35,7 @@
       register: _bootstrap_pip
       changed_when: _bootstrap_pip.rc == 0
 
-    - name: "pip: Clean up get-pip.py from NAS"
+    - name: "pip: Clean up get-pip.py"
       ansible.builtin.file:
         path: /volume1/get-pip.py
         state: absent
