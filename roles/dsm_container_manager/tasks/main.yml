@@ -47,16 +47,20 @@
 - name: "ContainerManager: Flush handlers (apply dockerd.json restart if changed)"
   ansible.builtin.meta: flush_handlers
 
-# Install Docker SDK into synology_python_docker interpreter.
-# synology_pip_executable is set by dsm_configuration/tasks/facts/python.yml
-# and aligns with synology_python_docker (python3.12 preferred for SDK stability).
-# community.docker modules connect via TCP and do NOT use NAS Python at runtime,
-# but the SDK must be importable by the same interpreter pip targets.
-- name: "ContainerManager: Set pip executable (from python facts or fallback)"
+# Install Docker SDK into the best available Python interpreter.
+# Priority: python3.14 > python3.12 > /bin/python3
+# (synology_python_best + synology_pip_executable set by facts/python.yml)
+#
+# Why best interpreter (not pinned to 3.12):
+#   - docker_stack uses Docker CLI only — no SDK at runtime
+#   - docker_swarm/docker_network/docker_swarm_info use SDK but connect via TCP
+#   - SDK just needs to be importable; python3.14 compat confirmed (docker>=7.0.0)
+#   - Docker is fleet-critical; use the best Python available
+- name: "ContainerManager: Set pip executable (best available, from python facts)"
   ansible.builtin.set_fact:
-    _cm_pip_exec: "{{ synology_pip_executable | default('/var/packages/Python3.12/target/bin/pip3') | default('/bin/pip') }}"
+    _cm_pip_exec: "{{ synology_pip_executable | default('/var/packages/Python3.14/target/bin/pip3') | default('/bin/pip') }}"
 
-- name: "ContainerManager: Install Python docker libraries via pip (into {{ _cm_pip_exec }})"
+- name: "ContainerManager: Install Python docker SDK via pip ({{ _cm_pip_exec }})"
   ansible.builtin.pip:
     name: "{{ synology_docker_pip_packages }}"
     executable: "{{ _cm_pip_exec }}"

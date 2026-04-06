@@ -2,11 +2,10 @@
 # =============================================================================
 # pip.yml — Bootstrap pip and install base Python packages
 #
-# Uses synology_pip_executable (set by facts/python.yml) which aligns with
-# synology_python_docker (python3.12 preferred). This ensures:
-#   - Docker SDK and docker-compose go into a stable, known interpreter
-#   - pip state is consistent across runs (idempotent)
-#   - The NAS Python used by pip matches what dsm_container_manager expects
+# Uses synology_pip_executable (set by facts/python.yml) which matches
+# synology_python_best (python3.14 > python3.12 > /bin/python3).
+# Single interpreter strategy: everything goes into the highest available
+# Python. docker>=7.0.0 is compatible with python3.14.
 #
 # Falls back to /bin/pip if python facts haven't run yet.
 # =============================================================================
@@ -30,9 +29,9 @@
         dest: /volume1/get-pip.py
         mode: '0770'
 
-    - name: "pip: Bootstrap pip using docker interpreter ({{ synology_python_docker | default('/bin/python3') }})"
+    - name: "pip: Bootstrap pip using best interpreter ({{ synology_python_best | default('/bin/python3') }})"
       ansible.builtin.command:
-        cmd: "{{ synology_python_docker | default('/bin/python3') }} /volume1/get-pip.py"
+        cmd: "{{ synology_python_best | default('/bin/python3') }} /volume1/get-pip.py"
       register: _bootstrap_pip
       changed_when: _bootstrap_pip.rc == 0
 

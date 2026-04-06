@@ -2,26 +2,25 @@
 # =============================================================================
 # facts/python.yml — Synology Python interpreter discovery
 #
-# Discovers all Python interpreters installed on the NAS (DSM built-in +
-# SynoCommunity packages), selects the best for Ansible and Docker, and
-# sets cacheable facts consumed by subsequent roles and tasks.
+# Discovers all Python interpreters on the NAS (DSM built-in + SynoCommunity)
+# and sets cacheable facts consumed by all subsequent roles and tasks.
 #
 # Facts set:
 #   synology_python_interpreters  — dict of name → path for all found pythons
-#   synology_python_best          — highest available interpreter path
-#   synology_python_docker        — interpreter used for Docker pip packages
-#                                   (python3.12 preferred: stable docker SDK compat)
-#   synology_pip_executable       — pip matching synology_python_docker
+#   synology_python_best          — highest available interpreter (3.14>3.12>3.9>system)
+#   synology_python_docker        — same as best (docker SDK compat: docker>=7.0.0
+#                                   supports python3.8+, including 3.14)
+#   synology_pip_executable       — pip matching synology_python_best
 #   synology_python_facts         — full structured fact (cacheable)
 #
-# Why two interpreter choices?
-#   - Ansible (ansible_python_interpreter): use highest available for best
-#     module compatibility and performance (python3.14 > 3.12 > /bin/python3)
-#   - Docker pip packages: use python3.12 as the stable baseline.
-#     The community.docker modules connect via TCP and do NOT use NAS Python,
-#     but pip-installed libraries (docker SDK, docker-compose) must be in a
-#     consistent interpreter that won't change between runs.
-#   - This preserves idempotency: same interpreter = same pip state = no drift.
+# Single interpreter strategy:
+#   Use the highest available Python for EVERYTHING — Ansible modules, pip,
+#   and Docker SDK. docker>=7.0.0 is py3.14 compatible. docker_stack uses
+#   Docker CLI (no SDK at runtime). docker_swarm/docker_network use SDK via TCP.
+#   Priority: python3.14 > python3.12 > python3.9 > /bin/python3
+#
+# Idempotency: facts are cached (cacheable: true). Interpreter selection is
+# stable across runs — same Python = same pip state = no drift.
 # =============================================================================
 
 # ── Discover installed SynoCommunity Python packages ─────────────────────────
@@ -121,27 +120,21 @@
         )
       }}
 
-# ── Select Docker pip Python (python3.12 preferred for SDK stability) ─────────
+# ── synology_python_docker = best (unified — docker>=7.0.0 supports python3.14) ───
 
-- name: "Python Facts: Select Docker pip interpreter (python3.12 > python3.14 > system)"
+- name: "Python Facts: Set Docker interpreter = best interpreter (unified strategy)"
   ansible.builtin.set_fact:
-    synology_python_docker: >-
-      {{
-        (_python_available.python312 is defined) | ternary(
-          _python_available.python312,
-          (_python_available.python314 is defined) | ternary(
-            _python_available.python314,
-            _python_available.system | default('/bin/python3')
-          )
-        )
-      }}
+    synology_python_docker: "{{ synology_python_best }}"
     synology_pip_executable: >-
       {{
-        (_pip_available.python312 is defined) | ternary(
-          _pip_available.python312,
-          (_pip_available.python314 is defined) | ternary(
-            _pip_available.python314,
-            _pip_available.system | default('/bin/pip')
+        (_pip_available.python314 is defined) | ternary(
+          _pip_available.python314,
+          (_pip_available.python312 is defined) | ternary(
+            _pip_available.python312,
+            (_pip_available.python39 is defined) | ternary(
+              _pip_available.python39,
+              _pip_available.system | default('/bin/pip')
+            )
           )
         )
       }}
@@ -176,7 +169,7 @@
 - name: "Python Facts: Summary"
   ansible.builtin.debug:
     msg:
-      - "Best interpreter (Ansible): {{ synology_python_best }}"
-      - "Docker pip interpreter:     {{ synology_python_docker }}"
-      - "Pip executable:             {{ synology_pip_executable }}"
-      - "Available: {{ _python_available.keys() | list | join(', ') }}"
+      - "Best interpreter (all uses): {{ synology_python_best }}"
+      - "Pip executable:              {{ synology_pip_executable }}"
+      - "Docker SDK installed:        {{ synology_python_facts.docker_sdk_installed }}"
+      - "Available interpreters:      {{ _python_available.keys() | list | join(', ') }}"

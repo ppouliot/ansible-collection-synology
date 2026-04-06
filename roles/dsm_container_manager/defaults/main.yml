@@ -23,20 +23,22 @@ synology_docker_cli: /usr/local/bin/docker
 synology_ghcr_user: "ppouliot"
 synology_ghcr_pat: ""
 
-# Python packages installed into synology_python_docker interpreter
-# (python3.12 preferred — set by dsm_configuration/tasks/facts/python.yml).
+# Python packages installed into synology_python_best interpreter
+# (python3.14 > python3.12 > /bin/python3, selected by facts/python.yml).
 #
-# docker==6.1.3: last version compatible with both python3.12 and DSM's Docker API.
-# docker-compose: Python wrapper — community.docker.docker_stack uses CLI, not this,
-#                  but keeping for direct compose invocation compatibility.
-# typing/zipp/lxml: deps required by docker SDK on older Python stdlib versions.
+# Module breakdown — which community.docker modules need what:
+#   docker_stack:      uses docker CLI subprocess ONLY — no SDK needed on NAS
+#   docker_swarm:      uses AnsibleDockerClient (SDK) — needs docker package
+#   docker_swarm_info: uses AnsibleDockerClient (SDK) — needs docker package
+#   docker_network:    uses AnsibleDockerClient (SDK) — needs docker package
 #
-# community.docker modules (docker_stack, docker_swarm, etc.) connect via TCP
-# to the Docker daemon — they do NOT execute on the NAS Python at runtime.
-# These pip packages only need to be importable, not in PATH.
+# docker>=7.0.0: requires_python>=3.8, compatible with python3.14.
+# docker-compose: kept for direct CLI-less compose invocation compat.
+# typing/zipp/lxml: dropped — stdlib in python3.14, not needed.
+# requests/urllib3: explicit to ensure correct versions alongside docker SDK.
+#
+# Priority: Docker > byobu. Docker/ContainerManager is fleet-critical.
 synology_docker_pip_packages:
-  - docker==6.1.3
-  - docker-compose
-  - typing
-  - zipp
-  - lxml
+  - docker>=7.0.0
+  - requests>=2.26.0
+  - urllib3>=1.26.0
