@@ -1,7 +1,27 @@
 ---
 # =============================================================================
 # Phase 2 — SSH-based configuration
-# Order matters: Python must be upgraded before any module-based tasks run.
+#
+# Execution order is critical for correctness and idempotency:
+#
+#   1.  SynoCommunity feed          — register SPK sources before any installs
+#   2.  Initial fact gather         — discover DSM device, packages
+#   3.  Timezone / SSH / User home  — base system config
+#   4.  Community packages          — installs python312 → byobu (order enforced)
+#   5.  Python facts (post-install) — discover all interpreters, select:
+#                                     synology_python_best (Ansible)
+#                                     synology_python_docker (Docker pip)
+#                                     synology_pip_executable
+#   6.  Re-gather Ansible facts     — with synology_python_best so modules
+#                                     use the highest available interpreter
+#   7.  pip bootstrap               — using synology_pip_executable
+#   8.  ContainerManager + Docker   — pip packages installed against
+#                                     synology_python_docker for SDK stability
+#
+# Idempotency:
+#   Python facts are cached (cacheable: true). On subsequent runs, the
+#   interpreter selection is pre-loaded from cache and consistent.
+#   pip tasks check installed state before acting.
 # =============================================================================
 
 # ── Step 1: SynoCommunity feed ────────────────────────────────────────────────
@@ -10,11 +30,15 @@
     file: syno_community.yml
   tags: syno_community
 
-# ── Step 2: Gather facts (auto_silent discovers best available Python) ────────
-- name: Gather facts — auto_silent picks highest available Python interpreter
+# ── Step 2: Initial fact gather ───────────────────────────────────────────────
+- name: Gather initial Ansible facts (minimal subset for speed)
   ansible.builtin.setup:
+    gather_subset:
+      - min
+      - hardware
+      - network
 
-# ── Step 3: Gather facts ──────────────────────────────────────────────────────
+# ── Step 3: Gather DSM-specific facts ────────────────────────────────────────
 - name: Gather facts about the synology
   block:
     - name: Synology Device Facts
@@ -31,14 +55,14 @@
       tags: package_facts
   # End Block
 
-# ── Step 4: Timezone ─────────────────────────────────────────────────────────
+# ── Step 4: Timezone ──────────────────────────────────────────────────────────
 - name: Set DSM timezone
   ansible.builtin.include_tasks:
     file: timezone.yml
   when: synology_dsm_timezone | default('') | length > 0
   tags: timezone
 
-# ── Step 5: SSH keys and critical tooling ────────────────────────────────────
+# ── Step 5: SSH keys and critical tooling ─────────────────────────────────────
 - name: SSH configuration and Install Critical Tooling
   block:
     - name: Install ssh keys from url for more secure remote management
@@ -70,20 +94,37 @@
       tags: cloudflare_ddns_scripts
   # End Block
 
-# ── Step 8: Community packages (SynoCommunity SPK install via SSH) ────────────
+# ── Step 8: Community packages (SynoCommunity SPK install via SSH) ─────────────
+# Package install order enforced in synology_dsm_community_packages list:
+#   python312 → synocli-net → byobu (byobu requires python312 running: error 268)
+# ARM64 nodes (ds218, ds418) use same list via group_vars/appserver/ override.
 - name: Install SynoCommunity packages
   ansible.builtin.include_tasks:
     file: community_packages.yml
   when: synology_dsm_community_packages | default([]) | length > 0
   tags: community_packages
 
-# ── Step 8b: Re-discover Python after community packages install ──────────────
-# python314 may have just been installed. Discover the highest available
-# interpreter, persist it to host_vars on the controller (so it survives
-# across runs and doesn't rely on ephemeral set_fact), then re-gather facts.
+# ── Step 8b: Python interpreter discovery (post-package-install) ───────────────
+# Runs AFTER community packages so python312/python314 are found if just installed.
+# Sets three key facts consumed by pip.yml, container_manager, and downstream plays:
+#   synology_python_best       — highest available, used for ansible_python_interpreter
+#   synology_python_docker     — python3.12 preferred, used for Docker SDK pip installs
+#   synology_pip_executable    — pip matching synology_python_docker
+# Facts are cacheable — idempotent across runs.
+- name: Discover Python interpreters and set pip facts
+  ansible.builtin.include_tasks:
+    file: facts/python.yml
+  tags: python_facts
 
-- name: Re-gather facts — auto_silent re-discovers highest Python after python314 install
+# ── Step 8c: Re-gather Ansible facts with best interpreter ────────────────────
+# Switch to synology_python_best so all subsequent Ansible modules run against
+# the highest available Python. This pivot is the key to efficient module execution.
+- name: Re-gather Ansible facts with best available Python interpreter
   ansible.builtin.setup:
+    gather_subset:
+      - min
+  vars:
+    ansible_python_interpreter: "{{ synology_python_best | default('/bin/python3') }}"
 
 # ── Step 9: Packages, pip, Docker ─────────────────────────────────────────────
 - name: Configure native package management, python-pip, and docker
@@ -94,7 +135,10 @@
         file: packages.yml
       tags: synology_packages
 
-    - name: Install(Upgrade) pip for python package management using Synology shipped python
+    # pip.yml uses synology_pip_executable (set in python facts, aligns with
+    # synology_python_docker). This ensures docker SDK installs go into the
+    # correct interpreter and pip state is consistent across runs.
+    - name: Bootstrap pip and install base packages
       ansible.builtin.include_tasks:
         file: pip.yml
       tags: Pip

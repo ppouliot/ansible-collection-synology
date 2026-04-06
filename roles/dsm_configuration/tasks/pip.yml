@@ -1,49 +1,63 @@
 ---
-# Note: DSM 7 ships Python 3.x. The bootstrap URL below works for all current Python 3 versions.
-# This task only runs if synology_pip_upgrade is true (default: false in main role vars).
+# =============================================================================
+# pip.yml — Bootstrap pip and install base Python packages
+#
+# Uses synology_pip_executable (set by facts/python.yml) which aligns with
+# synology_python_docker (python3.12 preferred). This ensures:
+#   - Docker SDK and docker-compose go into a stable, known interpreter
+#   - pip state is consistent across runs (idempotent)
+#   - The NAS Python used by pip matches what dsm_container_manager expects
+#
+# Falls back to /bin/pip if python facts haven't run yet.
+# =============================================================================
 
-- name: Check if pip is already installed
+- name: "pip: Set pip executable from python facts (fallback: /bin/pip)"
+  ansible.builtin.set_fact:
+    _pip_exec: "{{ synology_pip_executable | default('/bin/pip') }}"
+
+- name: "pip: Check if pip is available at selected executable"
   ansible.builtin.command:
-    cmd: /bin/which pip
-  register: synology_pip_status
+    cmd: "{{ _pip_exec }} --version"
+  register: _pip_check
   ignore_errors: true
   changed_when: false
 
-- name: Retrieve get-pip.py
-  ansible.builtin.get_url:
-    url: https://bootstrap.pypa.io/get-pip.py
-    dest: /volume1/get-pip.py
-    mode: '0770'
-  register: _get_url
-  when: synology_pip_status.rc != 0
+- name: "pip: Bootstrap pip via get-pip.py if not found"
+  block:
+    - name: "pip: Retrieve get-pip.py"
+      ansible.builtin.get_url:
+        url: https://bootstrap.pypa.io/get-pip.py
+        dest: /volume1/get-pip.py
+        mode: '0770'
 
-- name: Bootstrap pip using system python3
-  ansible.builtin.command:
-    cmd: "/bin/python3 /volume1/get-pip.py"
-  register: _bootstrap_pip
-  changed_when: _bootstrap_pip.rc == 0
-  when: synology_pip_status.rc != 0
+    - name: "pip: Bootstrap pip using docker interpreter ({{ synology_python_docker | default('/bin/python3') }})"
+      ansible.builtin.command:
+        cmd: "{{ synology_python_docker | default('/bin/python3') }} /volume1/get-pip.py"
+      register: _bootstrap_pip
+      changed_when: _bootstrap_pip.rc == 0
 
-- name: Remove stale pip symlink if present
+    - name: "pip: Clean up get-pip.py"
+      ansible.builtin.file:
+        path: /volume1/get-pip.py
+        state: absent
+  when: _pip_check.rc != 0
+
+- name: "pip: Remove stale /usr/local/bin/pip symlink if present"
   ansible.builtin.file:
     path: /usr/local/bin/pip
     state: absent
 
-- name: Upgrade pip to latest
+- name: "pip: Upgrade pip to latest"
   ansible.builtin.pip:
     name: pip
-    executable: /bin/pip
+    executable: "{{ _pip_exec }}"
     state: latest
     extra_args: "-U"
 
-- name: Install/upgrade setuptools
+- name: "pip: Install/upgrade base packages (setuptools, jsondiff)"
   ansible.builtin.pip:
-    name: setuptools
-    executable: /bin/pip
-    state: present
-
-- name: Install/upgrade jsondiff
-  ansible.builtin.pip:
-    name: jsondiff
-    executable: /bin/pip
+    name:
+      - setuptools
+      - jsondiff
+    executable: "{{ _pip_exec }}"
     state: present

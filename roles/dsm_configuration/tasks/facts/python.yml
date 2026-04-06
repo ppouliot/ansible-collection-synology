@@ -1,0 +1,182 @@
+---
+# =============================================================================
+# facts/python.yml — Synology Python interpreter discovery
+#
+# Discovers all Python interpreters installed on the NAS (DSM built-in +
+# SynoCommunity packages), selects the best for Ansible and Docker, and
+# sets cacheable facts consumed by subsequent roles and tasks.
+#
+# Facts set:
+#   synology_python_interpreters  — dict of name → path for all found pythons
+#   synology_python_best          — highest available interpreter path
+#   synology_python_docker        — interpreter used for Docker pip packages
+#                                   (python3.12 preferred: stable docker SDK compat)
+#   synology_pip_executable       — pip matching synology_python_docker
+#   synology_python_facts         — full structured fact (cacheable)
+#
+# Why two interpreter choices?
+#   - Ansible (ansible_python_interpreter): use highest available for best
+#     module compatibility and performance (python3.14 > 3.12 > /bin/python3)
+#   - Docker pip packages: use python3.12 as the stable baseline.
+#     The community.docker modules connect via TCP and do NOT use NAS Python,
+#     but pip-installed libraries (docker SDK, docker-compose) must be in a
+#     consistent interpreter that won't change between runs.
+#   - This preserves idempotency: same interpreter = same pip state = no drift.
+# =============================================================================
+
+# ── Discover installed SynoCommunity Python packages ─────────────────────────
+
+- name: "Python Facts: Check for SynoCommunity Python installations"
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  register: _python_stat_results
+  loop:
+    - { name: "python314", path: "/var/packages/Python3.14/target/bin/python3.14" }
+    - { name: "python312", path: "/var/packages/Python3.12/target/bin/python3.12" }
+    - { name: "python39",  path: "/var/packages/Python3.9/target/bin/python3.9" }
+    - { name: "system",    path: "/bin/python3" }
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Python Facts: Discover pip executables for found interpreters"
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  register: _pip_stat_results
+  loop:
+    - { name: "python314", path: "/var/packages/Python3.14/target/bin/pip3" }
+    - { name: "python312", path: "/var/packages/Python3.12/target/bin/pip3" }
+    - { name: "python39",  path: "/var/packages/Python3.9/target/bin/pip3" }
+    - { name: "system",    path: "/bin/pip" }
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Python Facts: Build interpreter availability map"
+  ansible.builtin.set_fact:
+    _python_available: >-
+      {{
+        dict(
+          _python_stat_results.results
+          | selectattr('stat.exists')
+          | map(attribute='item')
+          | map(attribute='name')
+          | zip(
+              _python_stat_results.results
+              | selectattr('stat.exists')
+              | map(attribute='item')
+              | map(attribute='path')
+            )
+          | list
+        )
+      }}
+    _pip_available: >-
+      {{
+        dict(
+          _pip_stat_results.results
+          | selectattr('stat.exists')
+          | map(attribute='item')
+          | map(attribute='name')
+          | zip(
+              _pip_stat_results.results
+              | selectattr('stat.exists')
+              | map(attribute='item')
+              | map(attribute='path')
+            )
+          | list
+        )
+      }}
+
+- name: "Python Facts: Get version strings for available interpreters"
+  ansible.builtin.command: "{{ item.value }} --version"
+  register: _python_version_results
+  changed_when: false
+  failed_when: false
+  loop: "{{ _python_available | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: "Python Facts: Check docker SDK installed per interpreter"
+  ansible.builtin.command: "{{ item.value }} -c 'import docker; print(docker.__version__)'"
+  register: _docker_sdk_results
+  changed_when: false
+  failed_when: false
+  loop: "{{ _python_available | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+# ── Select best interpreter for Ansible ──────────────────────────────────────
+
+- name: "Python Facts: Select best interpreter for Ansible (highest available)"
+  ansible.builtin.set_fact:
+    synology_python_best: >-
+      {{
+        (_python_available.python314 is defined) | ternary(
+          _python_available.python314,
+          (_python_available.python312 is defined) | ternary(
+            _python_available.python312,
+            (_python_available.python39 is defined) | ternary(
+              _python_available.python39,
+              _python_available.system | default('/bin/python3')
+            )
+          )
+        )
+      }}
+
+# ── Select Docker pip Python (python3.12 preferred for SDK stability) ─────────
+
+- name: "Python Facts: Select Docker pip interpreter (python3.12 > python3.14 > system)"
+  ansible.builtin.set_fact:
+    synology_python_docker: >-
+      {{
+        (_python_available.python312 is defined) | ternary(
+          _python_available.python312,
+          (_python_available.python314 is defined) | ternary(
+            _python_available.python314,
+            _python_available.system | default('/bin/python3')
+          )
+        )
+      }}
+    synology_pip_executable: >-
+      {{
+        (_pip_available.python312 is defined) | ternary(
+          _pip_available.python312,
+          (_pip_available.python314 is defined) | ternary(
+            _pip_available.python314,
+            _pip_available.system | default('/bin/pip')
+          )
+        )
+      }}
+
+# ── Build and cache full facts ────────────────────────────────────────────────
+
+- name: "Python Facts: Set and cache synology_python_facts"
+  ansible.builtin.set_fact:
+    synology_python_interpreters: "{{ _python_available }}"
+    synology_python_facts:
+      interpreters: "{{ _python_available }}"
+      pip_executables: "{{ _pip_available }}"
+      best_interpreter: "{{ synology_python_best }}"
+      docker_interpreter: "{{ synology_python_docker }}"
+      pip_for_docker: "{{ synology_pip_executable }}"
+      docker_sdk_installed: >-
+        {{
+          dict(
+            _docker_sdk_results.results
+            | map(attribute='item')
+            | map(attribute='key')
+            | zip(
+                _docker_sdk_results.results
+                | map(attribute='rc')
+                | map('equalto', 0)
+              )
+            | list
+          )
+        }}
+    cacheable: true
+
+- name: "Python Facts: Summary"
+  ansible.builtin.debug:
+    msg:
+      - "Best interpreter (Ansible): {{ synology_python_best }}"
+      - "Docker pip interpreter:     {{ synology_python_docker }}"
+      - "Pip executable:             {{ synology_pip_executable }}"
+      - "Available: {{ _python_available.keys() | list | join(', ') }}"

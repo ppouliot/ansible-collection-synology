@@ -39,7 +39,9 @@ synology_package_list: []
 #   ARM64/RTD1296 (ds218, ds418): override in group_vars/appserver/ or host_vars
 #     → python312 + synocli-net + byobu (no python314, no docker libs)
 #
-# This role default is the x86_64 baseline.
+# This role default is the x86_64 baseline (byobu on ALL hosts).
+# ARM64 nodes (ds218, ds418) get the same list via group_vars/appserver/
+# but without python314 (not needed, no Docker on ARM64).
 synology_dsm_community_packages:
   - python312
   - synocli-net

@@ -47,10 +47,19 @@
 - name: "ContainerManager: Flush handlers (apply dockerd.json restart if changed)"
   ansible.builtin.meta: flush_handlers
 
-- name: "ContainerManager: Install Python docker libraries via pip"
+# Install Docker SDK into synology_python_docker interpreter.
+# synology_pip_executable is set by dsm_configuration/tasks/facts/python.yml
+# and aligns with synology_python_docker (python3.12 preferred for SDK stability).
+# community.docker modules connect via TCP and do NOT use NAS Python at runtime,
+# but the SDK must be importable by the same interpreter pip targets.
+- name: "ContainerManager: Set pip executable (from python facts or fallback)"
+  ansible.builtin.set_fact:
+    _cm_pip_exec: "{{ synology_pip_executable | default('/var/packages/Python3.12/target/bin/pip3') | default('/bin/pip') }}"
+
+- name: "ContainerManager: Install Python docker libraries via pip (into {{ _cm_pip_exec }})"
   ansible.builtin.pip:
     name: "{{ synology_docker_pip_packages }}"
-    executable: /bin/pip
+    executable: "{{ _cm_pip_exec }}"
     state: present
   when: synology_docker_enable | default(false)
 
