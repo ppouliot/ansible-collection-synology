@@ -1,0 +1,82 @@
+---
+# =============================================================================
+# dsm_container_manager/tasks/main.yml
+#
+# Install and configure Docker/ContainerManager on Synology DSM 7+.
+# All tasks gated behind synology_docker_enable.
+#
+# Python interpreter note:
+#   This role runs over SSH after dsm_configuration has installed python314
+#   and re-gathered facts. community.docker modules connect to Docker via
+#   TCP (docker_host: tcp://...) — they do NOT execute on the NAS target.
+#   pip tasks use /bin/pip directly to avoid interpreter version ambiguity.
+# =============================================================================
+
+- name: "ContainerManager: Check installed packages"
+  ansible.builtin.command: "{{ synology_synopkg }} list --name"
+  register: _synopkg_list_cm
+  changed_when: false
+  ignore_errors: true
+  when: synology_docker_enable | default(false)
+
+- name: "ContainerManager: Set installed fact"
+  ansible.builtin.set_fact:
+    _container_manager_installed: "{{ 'ContainerManager' in _synopkg_list_cm.stdout }}"
+  when: synology_docker_enable | default(false)
+
+- name: "ContainerManager: Install from server if not present"
+  ansible.builtin.command: "{{ synology_synopkg }} install_from_server ContainerManager"
+  when:
+    - synology_docker_enable | default(false)
+    - not _container_manager_installed
+  become: true
+  changed_when: true
+
+- name: "ContainerManager: Configure Docker API access (dockerd.json)"
+  ansible.builtin.template:
+    dest: /volume1/@appconf/ContainerManager/dockerd.json
+    src: docker/dockerd.json.j2
+    backup: true
+    mode: preserve
+  register: _dockerd_json
+  notify: "Restart ContainerManager"
+  when:
+    - synology_docker_enable | default(false)
+    - synology_docker_api_access_enable | default(false)
+
+- name: "ContainerManager: Flush handlers (apply dockerd.json restart if changed)"
+  ansible.builtin.meta: flush_handlers
+
+- name: "ContainerManager: Install Python docker libraries via pip"
+  ansible.builtin.pip:
+    name: "{{ synology_docker_pip_packages }}"
+    executable: /bin/pip
+    state: present
+  when: synology_docker_enable | default(false)
+
+- name: "ContainerManager: Check if docker overlay network exists"
+  community.docker.docker_network_info:
+    docker_host: "tcp://{{ ansible_default_ipv4.address }}:2375"
+    name: "{{ synology_docker_network_name }}"
+  register: _docker_network_state
+  when:
+    - synology_docker_enable | default(false)
+    - synology_docker_api_access_enable | default(false)
+
+- name: "ContainerManager: Create docker overlay network"
+  community.docker.docker_network:
+    docker_host: "tcp://{{ ansible_default_ipv4.address }}:2375"
+    name: "{{ synology_docker_network_name }}"
+  when:
+    - synology_docker_enable | default(false)
+    - synology_docker_api_access_enable | default(false)
+    - not _docker_network_state.exists
+
+- name: "ContainerManager: Login to ghcr.io"
+  ansible.builtin.shell:
+    cmd: "echo '{{ synology_ghcr_pat }}' | docker login ghcr.io -u {{ synology_ghcr_user }} --password-stdin"
+  no_log: true
+  changed_when: false
+  when:
+    - synology_docker_enable | default(false)
+    - synology_ghcr_pat | default('') | length > 0

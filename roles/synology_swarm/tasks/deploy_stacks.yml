@@ -1,42 +1,155 @@
 ---
-# roles/synology_swarm/tasks/deploy_stacks.yml
+# =============================================================================
+# synology_swarm/tasks/deploy_stacks.yml
+#
+# Data-driven stack deployment — driven entirely by synology_swarm_stacks.
+# Enabled stacks get templated + deployed; disabled stacks are removed.
+# Runs only on the primary swarm manager.
+#
+# Template lookup: roles/synology_swarm/templates/compose/<name>.yml.j2
+# Inventory templates: playbooks/../templates/<name>.yml.j2 (fallback)
+#
+# Python interpreter note:
+#   community.docker.docker_stack connects via docker_cli (CLI wrapper),
+#   not via Python socket — no interpreter pivot needed here.
+# =============================================================================
 
-- name: Create directories for compose files and configs
+# ── Base infrastructure dirs ──────────────────────────────────────────────────
+
+- name: "Swarm: Create base infrastructure directories"
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ container_directory_root }}/{{ item }}"
     state: directory
-    owner: "{{ user_puid | default('1000') }}"
-    group: "{{ group_pgid | default('100') }}"
+    owner: "{{ user_puid | default('1026') }}"
+    group: "{{ group_pgid | default('101') }}"
     mode: "0755"
-    recurse: true
-  with_items:
-    - "{{ container_directory_root }}/compose"
-    - "{{ container_directory_root }}/dozzle"
-    - "{{ container_directory_root }}/ergo"
-    - "{{ container_directory_root }}/netbootxyz"
+  loop: "{{ synology_swarm_base_dirs }}"
 
-- name: Place Swarm Compose Stacks
+# ── Per-stack directories ─────────────────────────────────────────────────────
+
+- name: "Swarm: Create directories for enabled stacks"
+  ansible.builtin.file:
+    path: "{{ container_directory_root }}/{{ item.1 }}"
+    state: directory
+    owner: "{{ user_puid | default('1026') }}"
+    group: "{{ group_pgid | default('101') }}"
+    mode: "0755"
+  loop: "{{ synology_swarm_stacks | selectattr('enabled') | subelements('dirs', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1 }}"
+  when: item.1 | length > 0
+
+# ── Template compose files ────────────────────────────────────────────────────
+
+- name: "Swarm: Template compose files for enabled stacks (role templates)"
   ansible.builtin.template:
-    src: "compose/{{ item }}.yml.j2"
-    dest: "{{ container_directory_root }}/compose/{{ item }}.yml"
+    src: "compose/{{ item.name }}.yml.j2"
+    dest: "{{ container_directory_root }}/compose/{{ item.name }}.yml"
     owner: root
     group: root
     mode: "0644"
-  with_items:
-    - dozzle
-    - ergo
-    - netbootxyz
-  ignore_errors: true # Ignore if template doesn't exist yet
+  loop: "{{ synology_swarm_stacks | selectattr('enabled') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  # Silently skip stacks whose template lives in the inventory repo instead
+  ignore_errors: true
+  register: _role_template_results
 
-- name: Deploy Swarm Stacks
+- name: "Swarm: Template compose files for enabled stacks (inventory templates fallback)"
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../templates/{{ item.name }}.yml.j2"
+    dest: "{{ container_directory_root }}/compose/{{ item.name }}.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ synology_swarm_stacks | selectattr('enabled') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  # Only run for stacks the role template didn't handle
+  when: >
+    _role_template_results.results
+    | selectattr('item.name', 'equalto', item.name)
+    | map(attribute='failed') | first | default(true)
+  ignore_errors: true
+
+# ── Deploy enabled stacks ─────────────────────────────────────────────────────
+
+- name: "Swarm: Deploy enabled stacks"
   community.docker.docker_stack:
-    docker_cli: "{{ synology_docker_cli | default('/usr/local/bin/docker') }}"
+    docker_cli: "{{ synology_docker_cli }}"
+    docker_host: "tcp://{{ ansible_default_ipv4.address }}:2375"
     state: present
-    name: "{{ item }}"
+    name: "{{ item.name }}"
     compose:
-      - "{{ container_directory_root }}/compose/{{ item }}.yml"
-  with_items:
-    - dozzle
-    - ergo
-    - netbootxyz
+      - "{{ container_directory_root }}/compose/{{ item.name }}.yml"
+  loop: "{{ synology_swarm_stacks | selectattr('enabled') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  ignore_errors: true
+
+# ── Remove disabled stacks ────────────────────────────────────────────────────
+
+- name: "Swarm: Remove disabled stacks"
+  community.docker.docker_stack:
+    docker_cli: "{{ synology_docker_cli }}"
+    docker_host: "tcp://{{ ansible_default_ipv4.address }}:2375"
+    state: absent
+    name: "{{ item.name }}"
+  loop: "{{ synology_swarm_stacks | rejectattr('enabled') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  ignore_errors: true
+
+# ── Gather swarm stack facts ──────────────────────────────────────────────────
+
+- name: "Swarm: List deployed stacks"
+  ansible.builtin.command: "{{ synology_docker_cli }} stack ls --format json"
+  register: _swarm_stack_ls
+  changed_when: false
+  ignore_errors: true
+
+- name: "Swarm: Get service status per enabled stack"
+  ansible.builtin.command: >
+    {{ synology_docker_cli }} stack ps {{ item.name }}
+    --format '{{ "{{json .}}" }}' --no-trunc
+  register: _swarm_stack_ps_results
+  changed_when: false
+  ignore_errors: true
+  loop: "{{ synology_swarm_stacks | selectattr('enabled') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Swarm: Set synology_swarm_facts"
+  ansible.builtin.set_fact:
+    synology_swarm_facts:
+      deployed_stacks: "{{ _swarm_stack_ls.stdout_lines | map('from_json') | list }}"
+      stack_services: >-
+        {{
+          dict(
+            synology_swarm_stacks | selectattr('enabled') | map(attribute='name') | list
+            | zip(
+                _swarm_stack_ps_results.results
+                | map(attribute='stdout_lines')
+                | map('map', 'from_json')
+                | map('list')
+                | list
+              )
+            | list
+          )
+        }}
+    cacheable: true
+  ignore_errors: true
+
+- name: "Swarm: Report stack summary"
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.name }}:
+      {% if synology_swarm_facts.deployed_stacks | selectattr('Name', 'equalto', item.name) | list | length > 0 %}
+      ✅ deployed
+      {% else %}
+      ❌ not deployed
+      {% endif %}
+  loop: "{{ synology_swarm_stacks | selectattr('enabled') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
   ignore_errors: true

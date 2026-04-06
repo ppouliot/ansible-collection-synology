@@ -1,0 +1,5 @@
+---
+- name: Restart ContainerManager
+  ansible.builtin.command:
+    cmd: /usr/syno/bin/synosystemctl restart pkg-ContainerManager-dockerd
+  changed_when: true

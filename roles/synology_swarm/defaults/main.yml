@@ -1,4 +1,116 @@
 ---
-# roles/synology_swarm/defaults/main.yml
-# This role requires docker to be enabled
+# =============================================================================
+# synology_swarm defaults
+#
+# All stacks deploy to /volume1/docker/compose/<name>.yml via Swarm mode.
+# Override synology_swarm_stacks in inventory group_vars/swarm/ to control
+# which workloads are enabled on each swarm.
+#
+# Each stack entry:
+#   name:    stack name (matches template compose/<name>.yml.j2)
+#   enabled: true | false  — present vs absent in the swarm
+#   dirs:    list of subdirs under container_directory_root to create
+# =============================================================================
+
 synology_docker_enable: false
+synology_docker_cli: /usr/local/bin/docker
+
+# Primary swarm compose root
+container_directory_root: /volume1/docker
+
+# Stack definitions — all the workloads from swarm.yml that work today,
+# plus the 3 originally in synology_swarm. Disabled by default; enable
+# per-site in inventory group_vars/swarm/main.yml or host_vars.
+synology_swarm_stacks:
+  - name: asciinemia
+    enabled: false
+    dirs: []
+  - name: code-server
+    enabled: false
+    dirs:
+      - code-server/config
+      - code-server/workspace
+  - name: consul
+    enabled: false
+    dirs:
+      - consul
+  - name: coredns
+    enabled: false
+    dirs:
+      - coredns
+  - name: diun
+    enabled: false
+    dirs:
+      - diun
+  - name: dozzle
+    enabled: false
+    dirs:
+      - dozzle
+  - name: drawio
+    enabled: false
+    dirs: []
+  - name: ergo
+    enabled: false
+    dirs:
+      - ergo
+  - name: github-actions-runner
+    enabled: false
+    dirs:
+      - github-actions-runner
+      - github-actions-runner/workdir
+  - name: gitlab-runner
+    enabled: false
+    dirs:
+      - gitlab-runner
+  - name: gluetun_tailscale
+    enabled: false
+    dirs:
+      - gluetun
+      - tailscale
+  - name: kaunta
+    enabled: false
+    dirs:
+      - kaunta
+      - kaunta/db
+  - name: netbootxyz
+    enabled: false
+    dirs:
+      - netbootxyz
+      - netbootxyz/config
+      - netbootxyz/assets
+  - name: nextcloud
+    enabled: false
+    dirs:
+      - nextcloud
+      - nextcloud/config
+      - nextcloud/data
+  - name: openclaw
+    enabled: false
+    dirs:
+      - openclaw
+  - name: shields
+    enabled: false
+    dirs: []
+  - name: swarm-cronjob
+    enabled: false
+    dirs: []
+  - name: swarmpit
+    enabled: false
+    dirs:
+      - swarmpit
+      - swarmpit/db-data
+      - swarmpit/influx-data
+  - name: tor
+    enabled: false
+    dirs:
+      - tor
+      - tor/config
+      - tor/data
+
+# Directories always created regardless of stack state
+synology_swarm_base_dirs:
+  - compose
+  - tofu
+
+# Coredns zone vars (used by coredns template) — override in group_vars
+synology_swarm_coredns_enable: false
