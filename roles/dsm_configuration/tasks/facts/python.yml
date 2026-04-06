@@ -25,14 +25,20 @@
 
 # ── Discover installed SynoCommunity Python packages ─────────────────────────
 
+# SynoCommunity packages install to lowercase paths on some DSM versions:
+#   /var/packages/python314/  (lowercase) vs /var/packages/Python3.14/ (title)
+# Probe both to handle either layout.
 - name: "Python Facts: Check for SynoCommunity Python installations"
   ansible.builtin.stat:
     path: "{{ item.path }}"
   register: _python_stat_results
   loop:
     - { name: "python314", path: "/var/packages/Python3.14/target/bin/python3.14" }
+    - { name: "python314", path: "/var/packages/python314/target/bin/python3.14" }
     - { name: "python312", path: "/var/packages/Python3.12/target/bin/python3.12" }
+    - { name: "python312", path: "/var/packages/python312/target/bin/python3.12" }
     - { name: "python39",  path: "/var/packages/Python3.9/target/bin/python3.9" }
+    - { name: "python39",  path: "/var/packages/python39/target/bin/python3.9" }
     - { name: "system",    path: "/bin/python3" }
   loop_control:
     label: "{{ item.name }}"
@@ -43,8 +49,11 @@
   register: _pip_stat_results
   loop:
     - { name: "python314", path: "/var/packages/Python3.14/target/bin/pip3" }
+    - { name: "python314", path: "/var/packages/python314/target/bin/pip3" }
     - { name: "python312", path: "/var/packages/Python3.12/target/bin/pip3" }
+    - { name: "python312", path: "/var/packages/python312/target/bin/pip3" }
     - { name: "python39",  path: "/var/packages/Python3.9/target/bin/pip3" }
+    - { name: "python39",  path: "/var/packages/python39/target/bin/pip3" }
     - { name: "system",    path: "/bin/pip" }
   loop_control:
     label: "{{ item.name }}"
