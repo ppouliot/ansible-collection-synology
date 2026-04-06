@@ -2,12 +2,14 @@
 # Install SynoCommunity packages via synopkg install <local.spk>
 #
 # DSM HTTP API returns error 103 for community packages (install_from_server blocked).
-# The correct method: the NAS fetches the SPK catalog JSON itself, downloads the .spk
-# directly, and installs it — no traffic routed through the controller at all.
-# This avoids saturating the WAN link to the remote site.
+# Flow:
+#   1. Controller fetches SPK catalog JSON (NAS may have no outbound internet)
+#   2. Controller downloads .spk files to /tmp/syno_spk/ locally
+#   3. .spk files are copied to NAS via SSH (ansible copy)
+#   4. synopkg install runs on NAS from local path
 #
-# Packages are installed in the order declared in synology_dsm_community_packages
-# so that dependencies (e.g. python312, synocli-net) are satisfied before dependents (byobu).
+# Packages are installed in declared order — python312 must be first and
+# running before byobu installs (DSM error 268 if dep not running).
 
 - name: Get installed packages list
   become: true
@@ -28,11 +30,15 @@
     state: directory
     mode: '0755'
 
-- name: Fetch community package SPK URLs from SynoCommunity (runs on NAS)
+# Catalog fetch runs on the CONTROLLER (delegate_to: localhost) because NAS
+# nodes (ds218, ds418, and any site behind NAT) may have no outbound internet.
+- name: Fetch community package SPK URLs from SynoCommunity (runs on controller)
   ansible.builtin.uri:
     url: "https://packages.synocommunity.com/?language=enu&arch={{ synology_dsm_arch }}&build={{ synology_dsm_build }}&major=7&micro=2&minor=3&nano=0&package_update_channel=stable"
     return_content: true
   register: _synocommunity_catalog
+  delegate_to: localhost
+  run_once: false
 
 - name: Build package → URL map from catalog
   ansible.builtin.set_fact:
@@ -43,13 +49,31 @@
         | items2dict(key_name='package', value_name='link')
       }}
 
-- name: Download SPK directly on NAS in declared order
-  become: true
+- name: Ensure SPK temp directory exists on controller
+  ansible.builtin.file:
+    path: "{{ synology_dsm_spk_tmp }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+
+- name: Download SPK files to controller (NAS has no outbound internet)
   ansible.builtin.get_url:
     url: "{{ _spk_ordered[item] }}"
     dest: "{{ synology_dsm_spk_tmp }}/{{ item }}.spk"
     mode: '0644'
     force: false
+  loop: "{{ synology_dsm_community_packages }}"
+  when:
+    - item not in _installed_pkg_names
+    - item in _spk_ordered
+  delegate_to: localhost
+
+- name: Copy SPK files from controller to NAS
+  become: true
+  ansible.builtin.copy:
+    src: "{{ synology_dsm_spk_tmp }}/{{ item }}.spk"
+    dest: "{{ synology_dsm_spk_tmp }}/{{ item }}.spk"
+    mode: '0644'
   loop: "{{ synology_dsm_community_packages }}"
   when:
     - item not in _installed_pkg_names
