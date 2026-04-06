@@ -55,7 +55,7 @@
     - item not in _installed_pkg_names
     - item in _spk_ordered
 
-- name: Install SPK packages in declared order (dependencies first)
+- name: Install non-byobu SPK packages first (dependency pass)
   become: true
   ansible.builtin.command:
     cmd: "/usr/syno/bin/synopkg install {{ synology_dsm_spk_tmp }}/{{ item }}.spk"
@@ -63,8 +63,31 @@
   when:
     - item not in _installed_pkg_names
     - item in _spk_ordered
+    - item != 'byobu'
   register: _synopkg_install
   changed_when: _synopkg_install.rc == 0
+
+- name: Start dependency packages so byobu installer can validate them
+  become: true
+  ansible.builtin.command:
+    cmd: "/usr/syno/bin/synopkg start {{ item }}"
+  loop: "{{ synology_dsm_community_packages }}"
+  when:
+    - item != 'byobu'
+    - item in _spk_ordered
+  failed_when: false
+  changed_when: false
+
+- name: Install byobu (after deps are started)
+  become: true
+  ansible.builtin.command:
+    cmd: "/usr/syno/bin/synopkg install {{ synology_dsm_spk_tmp }}/byobu.spk"
+  when:
+    - "'byobu' in synology_dsm_community_packages"
+    - "'byobu' in _spk_ordered"
+    - "'byobu' not in _installed_pkg_names"
+  changed_when: false
+  failed_when: false
 
 - name: Verify installed packages
   become: true
