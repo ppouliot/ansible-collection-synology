@@ -150,20 +150,6 @@
       best_interpreter: "{{ synology_python_best }}"
       docker_interpreter: "{{ synology_python_docker }}"
       pip_for_docker: "{{ synology_pip_executable }}"
-      docker_sdk_installed: >-
-        {{
-          dict(
-            _docker_sdk_results.results
-            | map(attribute='item')
-            | map(attribute='key')
-            | zip(
-                _docker_sdk_results.results
-                | map(attribute='rc')
-                | map('equalto', 0)
-              )
-            | list
-          )
-        }}
     cacheable: true
 
 - name: "Python Facts: Summary"
@@ -171,5 +157,4 @@
     msg:
       - "Best interpreter (all uses): {{ synology_python_best }}"
       - "Pip executable:              {{ synology_pip_executable }}"
-      - "Docker SDK installed:        {{ synology_python_facts.docker_sdk_installed }}"
       - "Available interpreters:      {{ _python_available.keys() | list | join(', ') }}"
