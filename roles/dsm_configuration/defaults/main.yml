@@ -29,13 +29,31 @@ synology_package_list: []
 # Community packages — installed via synopkg install <local.spk> over SSH
 # These cannot be installed via DSM HTTP API (error 103 from install_from_server).
 # Package IDs must match exactly what SynoCommunity uses (e.g. python314, byobu).
+#
+# ORDER MATTERS: python312 must come before byobu — DSM installer checks that
+# python312 is in a running state before byobu can install (error 268).
+# community_packages.yml enforces this: install non-byobu → start → install byobu.
+#
+# Per-arch overrides (set in host_vars or group_vars):
+#   x86_64 (ds1821p, ds718p, ds218p01/02, ds723p*): default list below
+#   ARM64/RTD1296 (ds218, ds418): override in group_vars/appserver/ or host_vars
+#     → python312 + synocli-net + byobu (no python314, no docker libs)
+#
+# This role default is the x86_64 baseline.
 synology_dsm_community_packages:
-  - python314
+  - python312
+  - synocli-net
+  - byobu
 
 # DSM architecture string for SynoCommunity SPK URL query.
-# DS218+/DS723+/most modern x86_64 models → apollolake or r1000, but the SPK
-# covers all x86_64 arches in a single file. Use 'apollolake' as default.
-# Override per-host if needed.
+#
+# Common values:
+#   apollolake — DS218+, DS718+, DS918+, DS1821+ and most modern x86_64 DSM 7.x
+#   r1000      — DS720+, DS920+, DS1521+, DS1621xs+
+#   rtd1296    — DS218 (plain), DS418, DS418j — ARM64, SynoCommunity supported
+#   armv8      — DS220j, DS120j — older ARM, very limited package availability
+#
+# ARM64 nodes override this in host_vars or group_vars/appserver/main.yml.
 synology_dsm_arch: "apollolake"
 
 # DSM build number — must match what's installed (86009 = DSM 7.3.2)
