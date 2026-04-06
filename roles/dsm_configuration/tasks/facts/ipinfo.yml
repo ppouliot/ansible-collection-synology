@@ -8,6 +8,8 @@
 
 - name: Get IP geolocation facts
   community.general.ipinfoio_facts:
+  ignore_errors: true
+  register: _ipinfo_result
 
 - name: Save IP info facts locally
   ansible.builtin.copy:
